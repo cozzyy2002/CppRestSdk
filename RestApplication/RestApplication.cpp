@@ -16,16 +16,18 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	try {
 		http_client client(argv[1]);
-		client.request(methods::GET)
+		auto result = client.request(methods::GET)
 			.then([](http_response& resp) {
-				std::cout << "Status code=" << resp.status_code() << std::endl;
-				std::cout << "Content length=" << resp.headers().content_length() << std::endl;
-			})
-			.wait();
+				return resp.content_ready();
+			});
+		http_response& resp = result.get();
+		std::wcout
+			<< L"status code=" << (int)resp.status_code()
+			<< L", content length=" << resp.headers().content_length()
+			<< L"\n" << resp.extract_string().get() << std::endl;
 	} catch(std::exception& ex) {
 		std::cerr << ex.what() << std::endl;
 	}
 
 	return 0;
 }
-
