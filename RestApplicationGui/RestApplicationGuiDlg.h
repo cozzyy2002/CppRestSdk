@@ -43,6 +43,7 @@ public:
 
 protected:
 	std::shared_ptr<web::websockets::client::websocket_callback_client> m_client;
+	bool canClose();
 	void setConnectStatus();
 	void log(LPCTSTR format, ...);
 	CString m_LogText;
@@ -65,4 +66,6 @@ protected:
 public:
 	afx_msg void OnClose();
 	CString m_ConnectStatusText;
+	virtual void OnOK();
+	virtual void OnCancel();
 };

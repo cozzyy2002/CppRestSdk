@@ -265,13 +265,35 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserSetText(WPARAM wParam, LPARAM lPar
 	return 0;
 }
 
+bool CRestApplicationGuiDlg::canClose()
+{
+	if(m_ConnectStatus < ConnectStatusConnecting) {
+		return true;
+	} else {
+		AfxMessageBox(U("Connection is not closed."), MB_OK + MB_ICONEXCLAMATION);
+		return false;
+	}
+};
 
 void CRestApplicationGuiDlg::OnClose()
 {
-	if(ConnectStatusConnecting <= m_ConnectStatus) {
-		AfxMessageBox(U("Connection is not closed."), MB_OK + MB_ICONEXCLAMATION);
-		return;
+	if(canClose()) {
+		CDialogEx::OnClose();
 	}
+}
 
-	CDialogEx::OnClose();
+
+void CRestApplicationGuiDlg::OnOK()
+{
+	if(canClose()) {
+		CDialogEx::OnOK();
+	}
+}
+
+
+void CRestApplicationGuiDlg::OnCancel()
+{
+	if(canClose()) {
+		CDialogEx::OnCancel();
+	}
 }
