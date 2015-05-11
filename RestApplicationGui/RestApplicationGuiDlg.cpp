@@ -84,6 +84,7 @@ BEGIN_MESSAGE_MAP(CRestApplicationGuiDlg, CDialogEx)
 //	ON_MESSAGE(WM_USER_Log, &CRestApplicationGuiDlg::OnUserLog)
 	ON_MESSAGE(WM_USER_SET_TEXT, &CRestApplicationGuiDlg::OnUserSetText)
 	ON_WM_CLOSE()
+	ON_MESSAGE(WM_USER_EVENT, &CRestApplicationGuiDlg::OnUserEvent)
 END_MESSAGE_MAP()
 
 
@@ -298,3 +299,15 @@ void CRestApplicationGuiDlg::OnCancel()
 		CDialogEx::OnCancel();
 	}
 }
+
+
+afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam)
+{
+	return 0;
+}
+
+const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CEvent::Type::_Count][CState::_Count] =
+{
+	// Initial state/Connect event
+	[](CEvent* pEvent) {},
+};
