@@ -183,7 +183,8 @@ void CRestApplicationGuiDlg::OnClickedButtonConnect()
 	m_client.reset(new websocket_callback_client());
 	m_client->set_close_handler([this](websocket_close_status status, const string_t& reason, const std::error_code& error) {
 		m_ConnectStatus = ConnectStatusClosed;
-		log(U("close_handler: status=%1!d!, reason='%2', error='%3'"), status, reason.c_str(), to_string_t(error.message().c_str()).c_str());
+		log(U("close_handler: status=%1!d!, reason='%2', error='%3'"),
+			status, reason.c_str(), to_string_t(error.message().c_str()).c_str());
 	});
 	m_client->connect((LPCTSTR)m_ServerUrl)
 		.then([this]() {
