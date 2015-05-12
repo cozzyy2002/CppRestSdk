@@ -15,6 +15,8 @@ using namespace web::websockets::client;
 using namespace utility;
 using namespace utility::conversions;
 
+static log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("RestApplicationGuiDlg"));
+
 // CAboutDlg dialog used for App About
 
 class CAboutDlg : public CDialogEx
@@ -306,8 +308,70 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 	return 0;
 }
 
-const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CEvent::Type::_Count][CState::_Count] =
+#define H(x) &CRestApplicationGuiDlg::handle##x
+#define _IGNORE H(Ignore)
+#define _FAIL H(Fail)
+
+const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count] =
 {
-	// Initial state/Connect event
-	[](CEvent* pEvent) {},
+	//	Initial				ConnectingSocket	ConnectingBroker	Connected		Subscribing			Subscribed			Disconnected
+	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,		_IGNORE,			_IGNORE,			H(Connect)	},	// Connect
+	{	_IGNORE,			_IGNORE,			_IGNORE,			H(Disconnect),	H(Disconnect),		H(Disconnect),		_IGNORE		}	//Disconnect
+	//ConnectedSocket
+	//ClosedSocket
+	//ConnectAccepted
+	//ConnectRejected
+	//SubscribeSuccess
+	//SubscribeFailure
+	//Publish
+	//Published
+	//PingTimer
 };
+
+CMqttState::Value CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
+{
+	return CMqttState::ConnectingSocket;
+}
+
+CMqttState::Value CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
+{
+	return CMqttState::Disconnected;
+}
+
+CMqttState::Value CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
+{
+	return CMqttState::ConnectingBroker;
+}
+
+CMqttState::Value CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
+{
+	return CMqttState::Disconnected;
+}
+
+CMqttState::Value CRestApplicationGuiDlg::handleConnectAccepted(CMqttEvent* pEvent)
+{
+	return CMqttState::ConnectingBroker;
+}
+
+CMqttState::Value CRestApplicationGuiDlg::handleConnectRejected(CMqttEvent* pEvent)
+{
+	return CMqttState::Disconnected;
+}
+
+CMqttState::Value CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
+{
+	return m_mqttState;
+}
+
+CMqttState::Value CRestApplicationGuiDlg::handleIgnore(CMqttEvent* pEvent)
+{
+	LOG4CPLUS_TRACE(logger, "handleIgnore()");
+	return m_mqttState;
+}
+
+CMqttState::Value CRestApplicationGuiDlg::handleFatal(CMqttEvent* pEvent)
+{
+	LOG4CPLUS_FATAL(logger, "handleFatal()");
+	ASSERT(false);
+	return m_mqttState;
+}

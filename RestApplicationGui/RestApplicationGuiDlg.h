@@ -5,7 +5,7 @@
 #pragma once
 #include "afxwin.h"
 
-class CState {
+class CMqttState {
 public:
 	typedef enum {
 		Initial,
@@ -19,7 +19,7 @@ public:
 	} Value;
 };
 
-class CEvent {
+class CMqttEvent {
 public:
 	class Type {
 	public:
@@ -28,8 +28,8 @@ public:
 			Disconnect,			// Request to disconnect MQTT broker
 			ConnectedSocket,	// websocket_client::connect() task is completed
 			ClosedSocket,		// websocket_client::close_handler is called
-			ConnAccepted,		// MQTT CONNACK(Return Code == 0) is received
-			ConnRejected,		// MQTT CONNACK(Return Code != 0) is received
+			ConnectAccepted,	// MQTT CONNACK(Return Code == 0) is received
+			ConnectRejected,	// MQTT CONNACK(Return Code != 0) is received
 			SubscribeSuccess,	// MQTT SUBACK(Return Code != 0x80) is received
 			SubscribeFailure,	// MQTT SUBACK(Return Code == 0x80) is received
 			Publish,			// Requtest to publish message
@@ -39,8 +39,8 @@ public:
 		};
 	};
 
-	explicit CEvent(Type type) : m_Type(type) {};
-	virtual ~CEvent() {};
+	explicit CMqttEvent(Type type) : m_Type(type) {};
+	virtual ~CMqttEvent() {};
 
 protected:
 	Type m_Type;
@@ -50,8 +50,21 @@ protected:
 class CRestApplicationGuiDlg : public CDialogEx
 {
 protected:
-	typedef CState::Value(*CRestApplicationGuiDlg::event_handler_t)(CEvent* pEvent);
-	static const event_handler_t state_event_table[CEvent::Type::_Count][CState::_Count];
+	CMqttState::Value m_mqttState;
+
+	typedef CMqttState::Value(CRestApplicationGuiDlg::*event_handler_t)(CMqttEvent* pEvent);
+	static const event_handler_t state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count];
+
+	CMqttState::Value handleConnect(CMqttEvent* pEvent);
+	CMqttState::Value handleDisconnect(CMqttEvent* pEvent);
+	CMqttState::Value handleConnectedSocket(CMqttEvent* pEvent);
+	CMqttState::Value handleClosedSocket(CMqttEvent* pEvent);
+	CMqttState::Value handleConnectAccepted(CMqttEvent* pEvent);
+	CMqttState::Value handleConnectRejected(CMqttEvent* pEvent);
+	CMqttState::Value handlePingTimer(CMqttEvent* pEvent);
+
+	CMqttState::Value handleIgnore(CMqttEvent* pEvent);
+	CMqttState::Value handleFatal(CMqttEvent* pEvent);
 
 	std::shared_ptr<web::websockets::client::websocket_callback_client> m_client;
 	bool canClose();
