@@ -305,73 +305,126 @@ void CRestApplicationGuiDlg::OnCancel()
 
 afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam)
 {
+	CMqttEvent* pEvent = (CMqttEvent*)lParam;
+	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_mqttState << ", event=" << *pEvent);
+
+	if(!m_mqttState.isValid()) {
+		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (int)m_mqttState);
+		return 0;
+	}
+	if(!pEvent->isValid()) {
+		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (int)m_mqttState);
+		return 0;
+	}
+
+	event_handler_t handler = state_event_table[*pEvent][m_mqttState];
+	m_mqttState = (this->*handler)(pEvent);
+
 	return 0;
 }
 
 #define H(x) &CRestApplicationGuiDlg::handle##x
 #define _IGNORE H(Ignore)
-#define _FAIL H(Fail)
+#define _FATAL H(Fatal)
 
 const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count] =
 {
 	//	Initial				ConnectingSocket	ConnectingBroker	Connected		Subscribing			Subscribed			Disconnected
 	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,		_IGNORE,			_IGNORE,			H(Connect)	},	// Connect
-	{	_IGNORE,			_IGNORE,			_IGNORE,			H(Disconnect),	H(Disconnect),		H(Disconnect),		_IGNORE		}	//Disconnect
-	//ConnectedSocket
-	//ClosedSocket
-	//ConnectAccepted
-	//ConnectRejected
-	//SubscribeSuccess
-	//SubscribeFailure
-	//Publish
-	//Published
-	//PingTimer
+	{	_IGNORE,			_IGNORE,			_IGNORE,			H(Disconnect),	H(Disconnect),		H(Disconnect),		_IGNORE		},	//Disconnect
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//ConnectedSocket
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//ClosedSocket
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//ConnectAccepted
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//ConnectRejected
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//SubscribeSuccess
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//SubscribeFailure
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//Publish
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//Published
+	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//PingTimer
 };
 
-CMqttState::Value CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 {
 	return CMqttState::ConnectingSocket;
 }
 
-CMqttState::Value CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
 {
 	return CMqttState::Disconnected;
 }
 
-CMqttState::Value CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
 {
 	return CMqttState::ConnectingBroker;
 }
 
-CMqttState::Value CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
 {
 	return CMqttState::Disconnected;
 }
 
-CMqttState::Value CRestApplicationGuiDlg::handleConnectAccepted(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleConnectAccepted(CMqttEvent* pEvent)
 {
 	return CMqttState::ConnectingBroker;
 }
 
-CMqttState::Value CRestApplicationGuiDlg::handleConnectRejected(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleConnectRejected(CMqttEvent* pEvent)
 {
 	return CMqttState::Disconnected;
 }
 
-CMqttState::Value CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
 {
 	return m_mqttState;
 }
 
-CMqttState::Value CRestApplicationGuiDlg::handleIgnore(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleIgnore(CMqttEvent* pEvent)
 {
 	LOG4CPLUS_TRACE(logger, "handleIgnore()");
 	return m_mqttState;
 }
 
-CMqttState::Value CRestApplicationGuiDlg::handleFatal(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleFatal(CMqttEvent* pEvent)
 {
 	LOG4CPLUS_FATAL(logger, "handleFatal()");
 	ASSERT(false);
 	return m_mqttState;
 }
+
+#define CASE(x) case x: return #x
+
+CMqttState::operator LPSTR() const
+{
+	switch(m_value) {
+		CASE(Initial);
+		CASE(ConnectingSocket);
+		CASE(ConnectingBroker);
+		CASE(Connected);
+		CASE(Subscribing);
+		CASE(Subscribed);
+		CASE(Disconnected);
+	default:
+		return "UNKNOWN";
+	}
+}
+
+CMqttEvent::operator LPSTR() const
+{
+	switch(m_type) {
+		CASE(Connect);
+		CASE(Disconnect);
+		CASE(ConnectedSocket);
+		CASE(ClosedSocket);
+		CASE(ConnectAccepted);
+		CASE(ConnectRejected);
+		CASE(SubscribeSuccess);
+		CASE(SubscribeFailure);
+		CASE(Publish);
+		CASE(Published);
+		CASE(PingTimer);
+	default:
+		return "UNKNOWN";
+	}
+}
+
+#undef CASE

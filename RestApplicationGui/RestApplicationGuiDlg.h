@@ -17,54 +17,64 @@ public:
 		Disconnected,			// Disconnected
 		_Count					// Count of enum value for boundary check
 	} Value;
+
+	CMqttState() { m_value = Initial; };
+	CMqttState(Value value) { m_value = value; };
+	inline operator int() const { return (int)m_value; };
+	inline bool isValid() const { return (0 <= *this) && (*this < Value::_Count); };
+	operator LPSTR() const;
+
+protected:
+	Value m_value;
 };
 
 class CMqttEvent {
 public:
-	class Type {
-	public:
-		typedef enum {
-			Connect,			// Request to connect to MQTT broker
-			Disconnect,			// Request to disconnect MQTT broker
-			ConnectedSocket,	// websocket_client::connect() task is completed
-			ClosedSocket,		// websocket_client::close_handler is called
-			ConnectAccepted,	// MQTT CONNACK(Return Code == 0) is received
-			ConnectRejected,	// MQTT CONNACK(Return Code != 0) is received
-			SubscribeSuccess,	// MQTT SUBACK(Return Code != 0x80) is received
-			SubscribeFailure,	// MQTT SUBACK(Return Code == 0x80) is received
-			Publish,			// Requtest to publish message
-			Published,			// MQTT PUBLISH is received
-			PingTimer,			// Timeout of PING timer
-			_Count				// Count of enum value for boundary check
-		};
-	};
+	typedef enum {
+		Connect,			// Request to connect to MQTT broker
+		Disconnect,			// Request to disconnect MQTT broker
+		ConnectedSocket,	// websocket_client::connect() task is completed
+		ClosedSocket,		// websocket_client::close_handler is called
+		ConnectAccepted,	// MQTT CONNACK(Return Code == 0) is received
+		ConnectRejected,	// MQTT CONNACK(Return Code != 0) is received
+		SubscribeSuccess,	// MQTT SUBACK(Return Code != 0x80) is received
+		SubscribeFailure,	// MQTT SUBACK(Return Code == 0x80) is received
+		Publish,			// Requtest to publish message
+		Published,			// MQTT PUBLISH is received
+		PingTimer,			// Timeout of PING timer
+		_Count				// Count of enum value for boundary check
+	} Type;
 
-	explicit CMqttEvent(Type type) : m_Type(type) {};
+	explicit CMqttEvent(Type type) : m_type(type) {};
 	virtual ~CMqttEvent() {};
+	inline operator int() const { return (int)m_type; };
+	inline bool isValid() const { return (0 <= *this) && (*this < Type::_Count); };
+	operator LPSTR() const;
 
 protected:
-	Type m_Type;
+	Type m_type;
 };
 
 // CRestApplicationGuiDlg dialog
 class CRestApplicationGuiDlg : public CDialogEx
 {
 protected:
-	CMqttState::Value m_mqttState;
+	CMqttState m_mqttState;
 
-	typedef CMqttState::Value(CRestApplicationGuiDlg::*event_handler_t)(CMqttEvent* pEvent);
+	typedef CMqttState (CRestApplicationGuiDlg::*event_handler_t)(CMqttEvent* pEvent);
 	static const event_handler_t state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count];
 
-	CMqttState::Value handleConnect(CMqttEvent* pEvent);
-	CMqttState::Value handleDisconnect(CMqttEvent* pEvent);
-	CMqttState::Value handleConnectedSocket(CMqttEvent* pEvent);
-	CMqttState::Value handleClosedSocket(CMqttEvent* pEvent);
-	CMqttState::Value handleConnectAccepted(CMqttEvent* pEvent);
-	CMqttState::Value handleConnectRejected(CMqttEvent* pEvent);
-	CMqttState::Value handlePingTimer(CMqttEvent* pEvent);
+	void postEvent(CMqttEvent* pEvent);
+	CMqttState handleConnect(CMqttEvent* pEvent);
+	CMqttState handleDisconnect(CMqttEvent* pEvent);
+	CMqttState handleConnectedSocket(CMqttEvent* pEvent);
+	CMqttState handleClosedSocket(CMqttEvent* pEvent);
+	CMqttState handleConnectAccepted(CMqttEvent* pEvent);
+	CMqttState handleConnectRejected(CMqttEvent* pEvent);
+	CMqttState handlePingTimer(CMqttEvent* pEvent);
 
-	CMqttState::Value handleIgnore(CMqttEvent* pEvent);
-	CMqttState::Value handleFatal(CMqttEvent* pEvent);
+	CMqttState handleIgnore(CMqttEvent* pEvent);
+	CMqttState handleFatal(CMqttEvent* pEvent);
 
 	std::shared_ptr<web::websockets::client::websocket_callback_client> m_client;
 	bool canClose();
