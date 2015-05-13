@@ -7,7 +7,7 @@
 
 class CMqttState {
 public:
-	typedef enum {
+	typedef enum _VALUE {
 		Initial,
 		ConnectingSocket,		// Waiting for WebSocket to connect
 		ConnectingBroker,		// Waiting for CONNACK MQTT control packet
@@ -30,7 +30,7 @@ protected:
 
 class CMqttEvent {
 public:
-	typedef enum {
+	typedef enum _TYPE {
 		Connect,			// Request to connect to MQTT broker
 		Disconnect,			// Request to disconnect MQTT broker
 		ConnectedSocket,	// websocket_client::connect() task is completed

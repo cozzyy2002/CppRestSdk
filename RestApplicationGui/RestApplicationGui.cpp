@@ -39,6 +39,8 @@ CRestApplicationGuiApp theApp;
 
 BOOL CRestApplicationGuiApp::InitInstance()
 {
+	log4cplus::PropertyConfigurator::doConfigure(LOG4CPLUS_TEXT("log4cplus.properties"));
+
 	// InitCommonControlsEx() is required on Windows XP if an application
 	// manifest specifies use of ComCtl32.dll version 6 or later to enable
 	// visual styles.  Otherwise, any window creation will fail.

@@ -179,6 +179,9 @@ HCURSOR CRestApplicationGuiDlg::OnQueryDragIcon()
 
 void CRestApplicationGuiDlg::OnClickedButtonConnect()
 {
+	postEvent(new CMqttEvent(CMqttEvent::Connect));
+
+#if 0
 	m_ConnectStatus = ConnectStatusConnecting;
 	UpdateData();
 	log(U("Connecting: '%1!s!'"), m_ServerUrl);
@@ -194,13 +197,17 @@ void CRestApplicationGuiDlg::OnClickedButtonConnect()
 			m_ConnectStatus = ConnectStatusConnected;
 			log(U("Connected: '%1'"), m_ServerUrl);
 		});
+#endif
 }
 
 
 void CRestApplicationGuiDlg::OnClickedButtonDisconnect()
 {
+	postEvent(new CMqttEvent(CMqttEvent::Disconnect));
+#if 0
 	m_ConnectStatus = ConnectStatusClosing;
 	m_client->close();
+#endif
 }
 
 
@@ -306,7 +313,7 @@ void CRestApplicationGuiDlg::OnCancel()
 afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam)
 {
 	CMqttEvent* pEvent = (CMqttEvent*)lParam;
-	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_mqttState << ", event=" << *pEvent);
+	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << (LPCSTR)m_mqttState << ", event=" << (LPCSTR)*pEvent);
 
 	if(!m_mqttState.isValid()) {
 		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (int)m_mqttState);
@@ -319,6 +326,7 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 
 	event_handler_t handler = state_event_table[*pEvent][m_mqttState];
 	m_mqttState = (this->*handler)(pEvent);
+	delete pEvent;
 
 	return 0;
 }
@@ -326,22 +334,28 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 #define H(x) &CRestApplicationGuiDlg::handle##x
 #define _IGNORE H(Ignore)
 #define _FATAL H(Fatal)
+#define _NOT_IMPL _FATAL
 
 const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count] =
 {
-	//	Initial				ConnectingSocket	ConnectingBroker	Connected		Subscribing			Subscribed			Disconnected
-	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,		_IGNORE,			_IGNORE,			H(Connect)	},	// Connect
-	{	_IGNORE,			_IGNORE,			_IGNORE,			H(Disconnect),	H(Disconnect),		H(Disconnect),		_IGNORE		},	//Disconnect
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//ConnectedSocket
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//ClosedSocket
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//ConnectAccepted
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//ConnectRejected
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//SubscribeSuccess
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//SubscribeFailure
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//Publish
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//Published
-	{	_FATAL,				_FATAL,				_FATAL,				_FATAL,			_FATAL,				_FATAL,				_FATAL		},	//PingTimer
+	//	Initial				ConnectingSocket	ConnectingBroker	Connected			Subscribing			Subscribed			Disconnected
+	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			H(Connect)	},	// Connect
+	{	_IGNORE,			_IGNORE,			_IGNORE,			H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},	//Disconnect
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//ConnectedSocket
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//ClosedSocket
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//ConnectAccepted
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//ConnectRejected
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//SubscribeSuccess
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//SubscribeFailure
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//Publish
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//Published
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//PingTimer
 };
+
+void CRestApplicationGuiDlg::postEvent(CMqttEvent* pEvent)
+{
+	VERIFY(PostMessage(WM_USER_EVENT, 0, (LPARAM)pEvent));
+}
 
 CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 {
@@ -391,40 +405,38 @@ CMqttState CRestApplicationGuiDlg::handleFatal(CMqttEvent* pEvent)
 	return m_mqttState;
 }
 
-#define CASE(x) case x: return #x
+#define _TO_STRING(x) #x
 
 CMqttState::operator LPSTR() const
 {
-	switch(m_value) {
-		CASE(Initial);
-		CASE(ConnectingSocket);
-		CASE(ConnectingBroker);
-		CASE(Connected);
-		CASE(Subscribing);
-		CASE(Subscribed);
-		CASE(Disconnected);
-	default:
-		return "UNKNOWN";
-	}
+	static const LPSTR names[Value::_Count] = {
+		_TO_STRING(Initial),
+		_TO_STRING(ConnectingSocket),
+		_TO_STRING(ConnectingBroker),
+		_TO_STRING(Connected),
+		_TO_STRING(Subscribing),
+		_TO_STRING(Subscribed),
+		_TO_STRING(Disconnected)
+	};
+
+	return isValid() ? names[m_value] : "UNKNOWN";
 }
 
 CMqttEvent::operator LPSTR() const
 {
-	switch(m_type) {
-		CASE(Connect);
-		CASE(Disconnect);
-		CASE(ConnectedSocket);
-		CASE(ClosedSocket);
-		CASE(ConnectAccepted);
-		CASE(ConnectRejected);
-		CASE(SubscribeSuccess);
-		CASE(SubscribeFailure);
-		CASE(Publish);
-		CASE(Published);
-		CASE(PingTimer);
-	default:
-		return "UNKNOWN";
-	}
-}
+	static const LPSTR names[Type::_Count] = {
+		_TO_STRING(Connect),
+		_TO_STRING(Disconnect),
+		_TO_STRING(ConnectedSocket),
+		_TO_STRING(ClosedSocket),
+		_TO_STRING(ConnectAccepted),
+		_TO_STRING(ConnectRejected),
+		_TO_STRING(SubscribeSuccess),
+		_TO_STRING(SubscribeFailure),
+		_TO_STRING(Publish),
+		_TO_STRING(Published),
+		_TO_STRING(PingTimer),
+	};
 
-#undef CASE
+	return isValid() ? names[m_type] : "UNKNOWN";
+}

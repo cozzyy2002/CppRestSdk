@@ -75,7 +75,8 @@
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>xcopy /D /Y /I "$(LOG4CPLUS_ROOT)\msvc13\Win32\bin.$(Configuration)_Unicode_MTd\*.dll" "$(OUTDIR)"</Command>
+      <Command>xcopy /D /Y /I "$(LOG4CPLUS_ROOT)\msvc13\Win32\bin.$(Configuration)_Unicode_MTd\*.dll" "$(OUTDIR)"
+xcopy /D /Y /I "$(SolutionDir)log4cplus.properties" "$(ProjectDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -108,7 +109,8 @@
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <PostBuildEvent>
-      <Command>xcopy /D /Y /I "$(LOG4CPLUS_ROOT)\msvc13\Win32\bin.$(Configuration)_Unicode_MT\*.dll" "$(OUTDIR)"</Command>
+      <Command>xcopy /D /Y /I "$(LOG4CPLUS_ROOT)\msvc13\Win32\bin.$(Configuration)_Unicode_MT\*.dll" "$(OUTDIR)"
+xcopy /D /Y /I "$(SolutionDir)log4cplus.properties" "$(ProjectDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
