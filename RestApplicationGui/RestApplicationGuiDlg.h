@@ -8,18 +8,18 @@
 class CMqttState {
 public:
 	typedef enum _VALUE {
-		Initial,
+		Initial,				// WebSocket is not connected or is disconnected
 		ConnectingSocket,		// Waiting for WebSocket to connect
 		ConnectingBroker,		// Waiting for CONNACK MQTT control packet
 		Connected,				// Connected to MQTT broker but not subscribed
 		Subscribing,			// Waiting for SUBACK MQTT control packet
 		Subscribed,				// Subscribed
-		Disconnected,			// Disconnected
+		Disconnecting,			// Disconnecting
 		_Count					// Count of enum value for boundary check
 	} Value;
 
-	CMqttState() { m_value = Initial; };
-	CMqttState(Value value) { m_value = value; };
+	CMqttState() : m_value(Initial) {};
+	CMqttState(Value value) : m_value(value) {};
 	inline operator int() const { return (int)m_value; };
 	inline bool isValid() const { return (0 <= *this) && (*this < Value::_Count); };
 	operator LPSTR() const;
@@ -64,6 +64,7 @@ protected:
 	typedef CMqttState (CRestApplicationGuiDlg::*event_handler_t)(CMqttEvent* pEvent);
 	static const event_handler_t state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count];
 
+	void postEvent(CMqttEvent::Type type);
 	void postEvent(CMqttEvent* pEvent);
 	CMqttState handleConnect(CMqttEvent* pEvent);
 	CMqttState handleDisconnect(CMqttEvent* pEvent);

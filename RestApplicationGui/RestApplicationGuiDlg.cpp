@@ -59,7 +59,7 @@ CRestApplicationGuiDlg::CRestApplicationGuiDlg(CWnd* pParent /*=NULL*/)
 	, m_Payload(_T(""))
 	, m_Topic(_T(""))
 	, m_ConnectStatus(ConnectStatusIdle)
-	, m_ConnectStatusText(_T("Idle"))
+	, m_ConnectStatusText(_T("Initial"))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -179,35 +179,13 @@ HCURSOR CRestApplicationGuiDlg::OnQueryDragIcon()
 
 void CRestApplicationGuiDlg::OnClickedButtonConnect()
 {
-	postEvent(new CMqttEvent(CMqttEvent::Connect));
-
-#if 0
-	m_ConnectStatus = ConnectStatusConnecting;
-	UpdateData();
-	log(U("Connecting: '%1!s!'"), m_ServerUrl);
-
-	m_client.reset(new websocket_callback_client());
-	m_client->set_close_handler([this](websocket_close_status status, const string_t& reason, const std::error_code& error) {
-		m_ConnectStatus = ConnectStatusClosed;
-		log(U("close_handler: status=%1!d!, reason='%2', error='%3'"),
-			status, reason.c_str(), to_string_t(error.message().c_str()).c_str());
-	});
-	m_client->connect((LPCTSTR)m_ServerUrl)
-		.then([this]() {
-			m_ConnectStatus = ConnectStatusConnected;
-			log(U("Connected: '%1'"), m_ServerUrl);
-		});
-#endif
+	postEvent(CMqttEvent::Connect);
 }
 
 
 void CRestApplicationGuiDlg::OnClickedButtonDisconnect()
 {
-	postEvent(new CMqttEvent(CMqttEvent::Disconnect));
-#if 0
-	m_ConnectStatus = ConnectStatusClosing;
-	m_client->close();
-#endif
+	postEvent(CMqttEvent::Disconnect);
 }
 
 
@@ -253,9 +231,10 @@ void CRestApplicationGuiDlg::log(LPCTSTR format, ...)
 	va_start(args, format);
 	CString text;
 	text.FormatMessageV(format, &args);
-	text += U("\r\n");
-	m_LogText.Append(text);
-	PostMessage(WM_USER_SET_TEXT, IDC_EDIT_LOG, (LPARAM)&m_LogText);
+	LOG4CPLUS_INFO(logger, (LPCTSTR)text);
+	//text += U("\r\n");
+	//m_LogText.Append(text);
+	//PostMessage(WM_USER_SET_TEXT, IDC_EDIT_LOG, (LPARAM)&m_LogText);
 }
 
 
@@ -278,7 +257,7 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserSetText(WPARAM wParam, LPARAM lPar
 
 bool CRestApplicationGuiDlg::canClose()
 {
-	if(m_ConnectStatus < ConnectStatusConnecting) {
+	if(m_mqttState == CMqttState::Initial) {
 		return true;
 	} else {
 		AfxMessageBox(U("Connection is not closed."), MB_OK + MB_ICONEXCLAMATION);
@@ -309,6 +288,15 @@ void CRestApplicationGuiDlg::OnCancel()
 	}
 }
 
+void CRestApplicationGuiDlg::postEvent(CMqttEvent::Type type)
+{
+	postEvent(new CMqttEvent(type));
+}
+
+void CRestApplicationGuiDlg::postEvent(CMqttEvent* pEvent)
+{
+	VERIFY(PostMessage(WM_USER_EVENT, 0, (LPARAM)pEvent));
+}
 
 afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam)
 {
@@ -328,6 +316,8 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 	m_mqttState = (this->*handler)(pEvent);
 	delete pEvent;
 
+	m_ConnectStatusText = m_mqttState;
+	UpdateData(FALSE);
 	return 0;
 }
 
@@ -338,33 +328,44 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 
 const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count] =
 {
-	//	Initial				ConnectingSocket	ConnectingBroker	Connected			Subscribing			Subscribed			Disconnected
-	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			H(Connect)	},	// Connect
-	{	_IGNORE,			_IGNORE,			_IGNORE,			H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},	//Disconnect
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//ConnectedSocket
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//ClosedSocket
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//ConnectAccepted
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//ConnectRejected
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//SubscribeSuccess
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//SubscribeFailure
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//Publish
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//Published
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},	//PingTimer
+	//	Initial				ConnectingSocket	ConnectingBroker	Connected			Subscribing			Subscribed			Disconnecting
+	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			H(Connect)	},		// Connect
+	{	_IGNORE,			H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},		// Disconnect
+	{	_FATAL,				H(ConnectedSocket),	_FATAL,				_FATAL,				_FATAL,				_FATAL,				_FATAL		},		// ConnectedSocket
+	{	_NOT_IMPL,			H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket)	},	// ClosedSocket
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnectAccepted
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnectRejected
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubscribeSuccess
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubscribeFailure
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Publish
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Published
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// PingTimer
 };
-
-void CRestApplicationGuiDlg::postEvent(CMqttEvent* pEvent)
-{
-	VERIFY(PostMessage(WM_USER_EVENT, 0, (LPARAM)pEvent));
-}
 
 CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 {
+	UpdateData();
+	log(U("Connecting: '%1!s!'"), m_ServerUrl);
+
+	m_client.reset(new websocket_callback_client());
+	m_client->set_close_handler([this](websocket_close_status status, const string_t& reason, const std::error_code& error) {
+		log(U("close_handler: status=%1!d!, reason='%2', error='%3'"),
+			status, reason.c_str(), to_string_t(error.message().c_str()).c_str());
+		postEvent(CMqttEvent::ClosedSocket);
+	});
+	m_client->connect((LPCTSTR)m_ServerUrl)
+		.then([this]() {
+			log(U("Connected: '%1'"), m_ServerUrl);
+			postEvent(CMqttEvent::ConnectedSocket);
+		});
+
 	return CMqttState::ConnectingSocket;
 }
 
 CMqttState CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
 {
-	return CMqttState::Disconnected;
+	m_client->close();
+	return CMqttState::Disconnecting;
 }
 
 CMqttState CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
@@ -374,7 +375,7 @@ CMqttState CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
 {
-	return CMqttState::Disconnected;
+	return CMqttState::Initial;
 }
 
 CMqttState CRestApplicationGuiDlg::handleConnectAccepted(CMqttEvent* pEvent)
@@ -384,7 +385,7 @@ CMqttState CRestApplicationGuiDlg::handleConnectAccepted(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleConnectRejected(CMqttEvent* pEvent)
 {
-	return CMqttState::Disconnected;
+	return CMqttState::Disconnecting;
 }
 
 CMqttState CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
@@ -416,7 +417,7 @@ CMqttState::operator LPSTR() const
 		_TO_STRING(Connected),
 		_TO_STRING(Subscribing),
 		_TO_STRING(Subscribed),
-		_TO_STRING(Disconnected)
+		_TO_STRING(Disconnecting)
 	};
 
 	return isValid() ? names[m_value] : "UNKNOWN";
