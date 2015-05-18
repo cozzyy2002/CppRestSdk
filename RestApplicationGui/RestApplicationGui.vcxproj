@@ -117,6 +117,7 @@ xcopy /D /Y /I "$(SolutionDir)log4cplus.properties" "$(ProjectDir)"</Command>
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Packet.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="RestApplicationGui.h" />
     <ClInclude Include="RestApplicationGuiDlg.h" />
@@ -124,6 +125,7 @@ xcopy /D /Y /I "$(SolutionDir)log4cplus.properties" "$(ProjectDir)"</Command>
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Packet.cpp" />
     <ClCompile Include="RestApplicationGui.cpp" />
     <ClCompile Include="RestApplicationGuiDlg.cpp" />
     <ClCompile Include="stdafx.cpp">
