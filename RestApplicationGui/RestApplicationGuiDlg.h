@@ -20,8 +20,8 @@ public:
 
 	CMqttState() : m_value(Initial) {};
 	CMqttState(Value value) : m_value(value) {};
-	inline operator int() const { return (int)m_value; };
-	inline bool isValid() const { return (0 <= *this) && (*this < Value::_Count); };
+	inline operator Value() const { return m_value; };
+	inline bool isValid() const { return ((Value)0 <= *this) && (*this < Value::_Count); };
 	operator LPSTR() const;
 
 protected:
@@ -47,8 +47,8 @@ public:
 
 	explicit CMqttEvent(Type type) : m_type(type) {};
 	virtual ~CMqttEvent() {};
-	inline operator int() const { return (int)m_type; };
-	inline bool isValid() const { return (0 <= *this) && (*this < Type::_Count); };
+	inline operator Type() const { return m_type; };
+	inline bool isValid() const { return ((Type)0 <= *this) && (*this < Type::_Count); };
 	operator LPSTR() const;
 
 protected:
