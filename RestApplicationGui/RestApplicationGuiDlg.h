@@ -8,6 +8,7 @@
 class CMqttState {
 public:
 	typedef enum _VALUE {
+		_Minimum = -1,
 		Initial,				// WebSocket is not connected or is disconnected
 		ConnectingSocket,		// Waiting for WebSocket to connect
 		ConnectingBroker,		// Waiting for CONNACK MQTT control packet
@@ -21,7 +22,7 @@ public:
 	CMqttState() : m_value(Initial) {};
 	CMqttState(Value value) : m_value(value) {};
 	inline operator Value() const { return m_value; };
-	inline bool isValid() const { return ((Value)0 <= *this) && (*this < Value::_Count); };
+	inline bool isValid() const { return (Value::_Minimum < m_value) && (m_value < Value::_Count); };
 	operator LPSTR() const;
 
 protected:
@@ -31,6 +32,7 @@ protected:
 class CMqttEvent {
 public:
 	typedef enum _TYPE {
+		_Minimum = -1,
 		Connect,			// Request to connect to MQTT broker
 		Disconnect,			// Request to disconnect MQTT broker
 		ConnectedSocket,	// websocket_client::connect() task is completed
@@ -48,7 +50,7 @@ public:
 	explicit CMqttEvent(Type type) : m_type(type) {};
 	virtual ~CMqttEvent() {};
 	inline operator Type() const { return m_type; };
-	inline bool isValid() const { return ((Type)0 <= *this) && (*this < Type::_Count); };
+	inline bool isValid() const { return (Type::_Minimum < m_type) && (m_type < Type::_Count); };
 	operator LPSTR() const;
 
 protected:
