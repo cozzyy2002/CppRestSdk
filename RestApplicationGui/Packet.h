@@ -1,13 +1,16 @@
 #pragma once
 
 namespace MQTT {
+	class CReceivedPacket;
 
 	class CPacket {
 	public:
+		typedef std::vector<byte> data_t;
+
 		// MQTT Packet type
 		class Type {
 		public:
-			typedef enum _Type {
+			typedef enum _Type : byte {
 				Reserved_0,			// Reserved
 				CONNECT,			// Client request to connect to Server
 				CONNACK,			// Connect acknowledgment
@@ -33,16 +36,21 @@ namespace MQTT {
 				bool sendToServer;			// true if Packet with this type is to send to server
 				bool receiveFromServer;		// true if Packet with this type is to receive from server
 				LPCSTR name;				// name string
+				std::function<CReceivedPacket* (const CPacket::data_t&)> parser;
 			} Property;
 
 			// Constructor from Value type
 			Type(Value value) : m_value(value) { _ASSERTE(value < Value::_Count); };
 			// Constructor from received data
-			Type(byte value) : m_value((Value)(value >> 4)) { _ASSERTE(m_value < Value::_Count); };
+			// NOTE: Validate value using validate() method before create this object
+			Type(byte value) : m_value((Value)(value >> 4)) { _ASSERTE(validate(value)); };
+
+			inline static bool validate(byte value) { return ((value >> 4) < Value::_Count); };
 
 			// Encode value to byte to send to server with Flag bits
+			// NOTE: To decode received byte, use Type(byte) constructor
 			inline byte encode(byte flagBit = 0) const { return (m_value << 4) | property().flagBit | flagBit; };
-			inline operator byte() const { return m_value; };
+			inline operator Value() const { return m_value; };
 			inline operator LPCSTR() const { return property().name; };
 			inline const Property& property() const { return m_properties[m_value]; };
 
@@ -51,25 +59,24 @@ namespace MQTT {
 			Value m_value;
 		};
 
-		typedef std::vector<byte> data_t;
 		typedef data_t::size_type size_t;
 		static const size_t remainingLengthMax = 268435455;
 
-		CPacket(Type type);
-		virtual ~CPacket();
-
-		inline Type type() const { return m_type; };
+		inline const Type& type() const { return m_type; };
 
 	protected:
+		CPacket(Type::Value type) : m_type(type) {};
+		virtual ~CPacket() {};
+
 		Type m_type;
 		data_t m_data;
 	};
 
 	class CPacketToSend : virtual public CPacket {
 	public:
-		CPacketToSend(Type type, size_t size = 100);
+		CPacketToSend(Type::Value type, size_t size = 100);
 
-		void add(const byte* pData, size_t size);
+		void add(const void* pData, size_t size);
 		void add(const std::string& str);
 		void add(int num);
 		const data_t& data() const;
@@ -81,8 +88,17 @@ namespace MQTT {
 
 	class CReceivedPacket : virtual public CPacket {
 	public:
-		CReceivedPacket(Type type);
+		static CReceivedPacket* parse(const data_t& data);
 
 		size_t remainingLength() const;
+		//virtual const data_t& payload() const;
+
+	protected:
+		CReceivedPacket(Type::Value type, const data_t& data) : CPacket(type) {};
+	};
+
+	class CConnAckPacket : public CReceivedPacket {
+	public:
+		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data) {};
 	};
 }
