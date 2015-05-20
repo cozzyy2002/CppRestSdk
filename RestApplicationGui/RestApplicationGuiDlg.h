@@ -7,7 +7,7 @@
 
 class CMqttState {
 public:
-	typedef enum _VALUE {
+	typedef enum _Value {
 		_Minimum = -1,
 		Initial,				// WebSocket is not connected or is disconnected
 		ConnectingSocket,		// Waiting for WebSocket to connect
@@ -31,16 +31,14 @@ protected:
 
 class CMqttEvent {
 public:
-	typedef enum _TYPE {
+	typedef enum _Type {
 		_Minimum = -1,
 		Connect,			// Request to connect to MQTT broker
 		Disconnect,			// Request to disconnect MQTT broker
 		ConnectedSocket,	// websocket_client::connect() task is completed
 		ClosedSocket,		// websocket_client::close_handler is called
-		ConnectAccepted,	// MQTT CONNACK(Return Code == 0) is received
-		ConnectRejected,	// MQTT CONNACK(Return Code != 0) is received
-		SubscribeSuccess,	// MQTT SUBACK(Return Code != 0x80) is received
-		SubscribeFailure,	// MQTT SUBACK(Return Code == 0x80) is received
+		ConnAck,			// MQTT CONNACK is received
+		SubAck,				// MQTT SUBACK is received
 		Publish,			// Requtest to publish message
 		Published,			// MQTT PUBLISH is received
 		PingTimer,			// Timeout of PING timer

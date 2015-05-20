@@ -79,7 +79,7 @@ namespace MQTT {
 		void add(const void* pData, size_t size);
 		void add(const std::string& str);
 		void add(int num);
-		const data_t& data() const;
+		virtual const data_t& data();
 
 	protected:
 		// Variable header and Payload
@@ -97,8 +97,32 @@ namespace MQTT {
 		CReceivedPacket(Type::Value type, const data_t& data) : CPacket(type) {};
 	};
 
+	class CConnectPacket : public CPacketToSend {
+	public:
+		CConnectPacket() : CPacket(Type::CONNECT), CPacketToSend(m_type) {};
+
+		virtual const data_t& data() {
+			// TODO: Add Variable header and Payload to m_variableData
+
+			return CPacketToSend::data();
+		};
+	};
+
 	class CConnAckPacket : public CReceivedPacket {
 	public:
-		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data) {};
+		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data) {
+			returnCode = (ReturnCode)data[3];
+		};
+
+		typedef enum _ReturnCode : byte {
+			ConnectionAccepted,
+			UnacceptableProtocolVersion,
+			IdentifierRejected,
+			ServerUnavailable,
+			BadUserNameOrPassword,
+			NotAuthorized,
+		} ReturnCode;
+
+		ReturnCode returnCode;
 	};
 }

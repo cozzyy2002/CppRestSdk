@@ -333,10 +333,8 @@ const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_even
 	{	_IGNORE,			H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},		// Disconnect
 	{	_FATAL,				H(ConnectedSocket),	_FATAL,				_FATAL,				_FATAL,				_FATAL,				_FATAL		},		// ConnectedSocket
 	{	_NOT_IMPL,			H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket)	},	// ClosedSocket
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnectAccepted
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnectRejected
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubscribeSuccess
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubscribeFailure
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnAck
+	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubAck
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Publish
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Published
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// PingTimer
@@ -430,10 +428,8 @@ CMqttEvent::operator LPSTR() const
 		_TO_STRING(Disconnect),
 		_TO_STRING(ConnectedSocket),
 		_TO_STRING(ClosedSocket),
-		_TO_STRING(ConnectAccepted),
-		_TO_STRING(ConnectRejected),
-		_TO_STRING(SubscribeSuccess),
-		_TO_STRING(SubscribeFailure),
+		_TO_STRING(ConnAck),
+		_TO_STRING(SubAck),
 		_TO_STRING(Publish),
 		_TO_STRING(Published),
 		_TO_STRING(PingTimer),
