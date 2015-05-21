@@ -4,6 +4,7 @@
 
 #pragma once
 #include "afxwin.h"
+#include "Packet.h"
 
 class CMqttState {
 public:
@@ -45,6 +46,7 @@ public:
 		_Count				// Count of enum value for boundary check
 	} Type;
 
+	explicit CMqttEvent() {};
 	explicit CMqttEvent(Type type) : m_type(type) {};
 	virtual ~CMqttEvent() {};
 	inline operator Type() const { return m_type; };
@@ -53,6 +55,35 @@ public:
 
 protected:
 	Type m_type;
+};
+
+class CReceivedPacketEvent : public CMqttEvent {
+public:
+	CReceivedPacketEvent(MQTT::CReceivedPacket* packet) : m_packet(packet) {
+		switch(packet->type()) {
+		case MQTT::CPacket::Type::CONNACK:
+			m_type = ConnAck;
+			break;
+		case MQTT::CPacket::Type::SUBACK:
+			m_type = SubAck;
+			break;
+		case MQTT::CPacket::Type::PUBLISH:
+			m_type = Published;
+			break;
+		case MQTT::CPacket::Type::PINGRESP:
+			// No associated event.
+			break;
+		default:
+			break;
+		}
+	};
+
+	virtual ~CReceivedPacketEvent()
+	{
+		delete m_packet;
+	};
+
+	MQTT::CReceivedPacket* m_packet;
 };
 
 // CRestApplicationGuiDlg dialog
@@ -66,12 +97,12 @@ protected:
 
 	void postEvent(CMqttEvent::Type type);
 	void postEvent(CMqttEvent* pEvent);
+	void send(const MQTT::data_t& data);
 	CMqttState handleConnect(CMqttEvent* pEvent);
 	CMqttState handleDisconnect(CMqttEvent* pEvent);
 	CMqttState handleConnectedSocket(CMqttEvent* pEvent);
 	CMqttState handleClosedSocket(CMqttEvent* pEvent);
-	CMqttState handleConnectAccepted(CMqttEvent* pEvent);
-	CMqttState handleConnectRejected(CMqttEvent* pEvent);
+	CMqttState handleConnAck(CMqttEvent* pEvent);
 	CMqttState handlePingTimer(CMqttEvent* pEvent);
 
 	CMqttState handleIgnore(CMqttEvent* pEvent);

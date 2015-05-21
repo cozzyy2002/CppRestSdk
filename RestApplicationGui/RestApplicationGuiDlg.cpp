@@ -12,8 +12,10 @@
 #endif
 
 using namespace web::websockets::client;
+using namespace concurrency::streams;
 using namespace utility;
 using namespace utility::conversions;
+using namespace MQTT;
 
 static log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("RestApplicationGuiDlg"));
 
@@ -192,6 +194,24 @@ void CRestApplicationGuiDlg::OnClickedButtonDisconnect()
 void CRestApplicationGuiDlg::OnClickedButtonSubscibe()
 {
 	// TODO: Add your control notification handler code here
+	CConnectPacket conn;
+	const byte* pConn = conn.data().data();
+	LOG4CPLUS_DEBUG(logger, "CConnectPacket: " << conn.type());
+
+	CDisconnectPacket disc;
+	const byte* pDisc = disc.data().data();
+	LOG4CPLUS_DEBUG(logger, "CDisconnectPacket: " << disc.type());
+
+	data_t test(4);
+	test[0] = 0x20;
+	test[1] = 0x02;
+	test[2] = 0x01;
+	test[3] = 0x05;
+	CReceivedPacket* rec = CReceivedPacket::create(test);
+	_ASSERTE(rec);
+	CConnAckPacket* pConnAck = dynamic_cast<CConnAckPacket*>(rec);
+	LOG4CPLUS_DEBUG(logger, "CConnAckPacket: " << typeid(*rec).name() << "," << rec->type() << "," << pConnAck->returnCode);
+	delete rec;
 }
 
 
@@ -301,14 +321,14 @@ void CRestApplicationGuiDlg::postEvent(CMqttEvent* pEvent)
 afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam)
 {
 	CMqttEvent* pEvent = (CMqttEvent*)lParam;
-	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << (LPCSTR)m_mqttState << ", event=" << (LPCSTR)*pEvent);
+	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_mqttState << ", event=" << *pEvent);
 
 	if(!m_mqttState.isValid()) {
-		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (int)m_mqttState);
+		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (byte)m_mqttState);
 		return 0;
 	}
 	if(!pEvent->isValid()) {
-		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (int)m_mqttState);
+		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (byte)m_mqttState);
 		return 0;
 	}
 
@@ -333,24 +353,53 @@ const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_even
 	{	_IGNORE,			H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},		// Disconnect
 	{	_FATAL,				H(ConnectedSocket),	_FATAL,				_FATAL,				_FATAL,				_FATAL,				_FATAL		},		// ConnectedSocket
 	{	_NOT_IMPL,			H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket)	},	// ClosedSocket
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnAck
+	{	_NOT_IMPL,			H(ConnAck),			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnAck
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubAck
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Publish
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Published
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// PingTimer
 };
 
+void CRestApplicationGuiDlg::send(const data_t& data)
+{
+	auto buf = std::make_shared<streambuf<byte>>();
+	buf->putn(data.data(), data.size())
+		.then([this, buf](pplx::task<size_t> task) {
+			task.wait();
+			websocket_outgoing_message msg;
+			msg.set_binary_message(buf->create_istream());
+			m_client->send(msg);
+		});
+}
+
 CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 {
 	UpdateData();
 	log(U("Connecting: '%1!s!'"), m_ServerUrl);
 
-	m_client.reset(new websocket_callback_client());
+	websocket_client_config config;
+	config.add_subprotocol(U("mqtt"));
+	m_client.reset(new websocket_callback_client(config));
+	m_client->set_message_handler([this](const websocket_incoming_message& msg) {
+		auto in = std::make_shared<istream>();
+		msg.body().read_to_end(in->streambuf())
+			.then([this, in](size_t size) {
+				LOG4CPLUS_DEBUG(logger, "Received " << size << "bytes");
+				data_t data(size);
+				in->streambuf().scopy(data.data(), size);
+				CReceivedPacket* packet = CReceivedPacket::create(data);
+				if(packet) {
+					LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name());
+					postEvent(new CReceivedPacketEvent(packet));
+				}
+			});
+	});
 	m_client->set_close_handler([this](websocket_close_status status, const string_t& reason, const std::error_code& error) {
 		log(U("close_handler: status=%1!d!, reason='%2', error='%3'"),
 			status, reason.c_str(), to_string_t(error.message().c_str()).c_str());
 		postEvent(CMqttEvent::ClosedSocket);
 	});
+
 	m_client->connect((LPCTSTR)m_ServerUrl)
 		.then([this]() {
 			log(U("Connected: '%1'"), m_ServerUrl);
@@ -368,6 +417,8 @@ CMqttState CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
 {
+	CConnectPacket packet;
+	send(packet.data());
 	return CMqttState::ConnectingBroker;
 }
 
@@ -376,14 +427,9 @@ CMqttState CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
 	return CMqttState::Initial;
 }
 
-CMqttState CRestApplicationGuiDlg::handleConnectAccepted(CMqttEvent* pEvent)
+CMqttState CRestApplicationGuiDlg::handleConnAck(CMqttEvent* pEvent)
 {
 	return CMqttState::ConnectingBroker;
-}
-
-CMqttState CRestApplicationGuiDlg::handleConnectRejected(CMqttEvent* pEvent)
-{
-	return CMqttState::Disconnecting;
 }
 
 CMqttState CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
@@ -393,22 +439,21 @@ CMqttState CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleIgnore(CMqttEvent* pEvent)
 {
-	LOG4CPLUS_TRACE(logger, "handleIgnore()");
+	LOG4CPLUS_TRACE(logger, "handleIgnore(): event=" << typeid(*pEvent).name());
 	return m_mqttState;
 }
 
 CMqttState CRestApplicationGuiDlg::handleFatal(CMqttEvent* pEvent)
 {
-	LOG4CPLUS_FATAL(logger, "handleFatal()");
-	ASSERT(false);
+	LOG4CPLUS_FATAL(logger, "handleFatal(): event=" << typeid(*pEvent).name());
 	return m_mqttState;
 }
 
 #define _TO_STRING(x) #x
 
-CMqttState::operator LPSTR() const
+CMqttState::operator LPCSTR() const
 {
-	static const LPSTR names[Value::_Count] = {
+	static const LPCSTR names[Value::_Count] = {
 		_TO_STRING(Initial),
 		_TO_STRING(ConnectingSocket),
 		_TO_STRING(ConnectingBroker),
@@ -421,9 +466,9 @@ CMqttState::operator LPSTR() const
 	return isValid() ? names[m_value] : "UNKNOWN";
 }
 
-CMqttEvent::operator LPSTR() const
+CMqttEvent::operator LPCSTR() const
 {
-	static const LPSTR names[Type::_Count] = {
+	static const LPCSTR names[Type::_Count] = {
 		_TO_STRING(Connect),
 		_TO_STRING(Disconnect),
 		_TO_STRING(ConnectedSocket),

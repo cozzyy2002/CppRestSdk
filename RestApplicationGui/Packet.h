@@ -36,7 +36,7 @@ namespace MQTT {
 				bool sendToServer;			// true if Packet with this type is to send to server
 				bool receiveFromServer;		// true if Packet with this type is to receive from server
 				LPCSTR name;				// name string
-				std::function<CReceivedPacket* (const data_t&)> parser;
+				std::function<CReceivedPacket* (const data_t&)> createPacket;
 			} Property;
 
 			// Constructor from Value type
@@ -78,24 +78,35 @@ namespace MQTT {
 
 		void add(const void* pData, size_t size);
 		void add(const data_t& data) { add(data.data(), data.size()); };
-		void add(const std::string& str) { add(str.size()); add(str.c_str(), str.size()); };
-		void add(uint16_t num, size_t size = sizeof(uint16_t)) { byte d[] = {HIBYTE(num), LOBYTE(num)}; add(&d[sizeof(uint16_t) - size], size); };
+		void add(const std::string& str) { add((uint16_t)str.size()); add(str.c_str(), str.size()); };
+		void add(byte num) { add((uint32_t)num, 1); }
+		void add(uint16_t num) { add((uint32_t)num, 2); }
+		void add(uint32_t num, size_t size = sizeof(uint32_t));
 		virtual const data_t& data();
 
 	protected:
+		// Returns size of m_variableData encoded using MQTT Remaining Length encoding scheme
+		size_t remainingLength() const { return m_variableData.size(); };
+
 		// Variable header and Payload
 		data_t m_variableData;
 	};
 
 	class CReceivedPacket : virtual public CPacket {
 	public:
-		static CReceivedPacket* parse(const data_t& data);
+		static CReceivedPacket* create(const data_t& data);
 
+		// Returns decoded Remaining Length in received data
 		size_t remainingLength() const;
 		//virtual const data_t& payload() const;
 
 	protected:
-		CReceivedPacket(Type::Value type, const data_t& data) : CPacket(type) {};
+		CReceivedPacket(Type::Value type, const data_t& data)
+			: CPacket(type), m_data(data) {};
+		bool parse();
+		virtual bool parseInternal() { return true; };
+
+		const data_t m_data;
 	};
 
 	class CConnectPacket : public CPacketToSend {
@@ -105,20 +116,23 @@ namespace MQTT {
 		virtual const data_t& data() {
 			// TODO: Add Variable header and Payload to m_variableData
 			add("MQTT");			// Protocol Name
-			add(4, 1);				// Protocol Level
-			add(2, 1);				// Connect Flags(Clean Session = 1)
-			add(60);				// Keep Alive(second)
+			add((byte)4);			// Protocol Level
+			add((byte)2);			// Connect Flags(Clean Session = 1)
+			add((uint16_t)60);		// Keep Alive(second)
 			add("KYclient");		// Client Identifier
 
 			return CPacketToSend::data();
 		};
 	};
 
+	class CDisconnectPacket : public CPacketToSend {
+	public:
+		CDisconnectPacket() : CPacket(Type::DISCONNECT), CPacketToSend(m_type) {};
+	};
+
 	class CConnAckPacket : public CReceivedPacket {
 	public:
-		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data) {
-			returnCode = (ReturnCode)data[3];
-		};
+		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data) {};
 
 		typedef enum _ReturnCode : byte {
 			ConnectionAccepted,
@@ -130,5 +144,8 @@ namespace MQTT {
 		} ReturnCode;
 
 		ReturnCode returnCode;
+
+	protected:
+		virtual bool parseInternal() { returnCode = (ReturnCode)m_data[3]; return true; };
 	};
 }
