@@ -1,12 +1,12 @@
 #pragma once
 
 namespace MQTT {
+	typedef std::vector<byte> data_t;
+
 	class CReceivedPacket;
 
 	class CPacket {
 	public:
-		typedef std::vector<byte> data_t;
-
 		// MQTT Packet type
 		class Type {
 		public:
@@ -36,7 +36,7 @@ namespace MQTT {
 				bool sendToServer;			// true if Packet with this type is to send to server
 				bool receiveFromServer;		// true if Packet with this type is to receive from server
 				LPCSTR name;				// name string
-				std::function<CReceivedPacket* (const CPacket::data_t&)> parser;
+				std::function<CReceivedPacket* (const data_t&)> parser;
 			} Property;
 
 			// Constructor from Value type
@@ -56,7 +56,7 @@ namespace MQTT {
 
 		protected:
 			static const Property m_properties[Type::_Count];
-			Value m_value;
+			const Value m_value;
 		};
 
 		typedef data_t::size_type size_t;
@@ -68,7 +68,7 @@ namespace MQTT {
 		CPacket(Type::Value type) : m_type(type) {};
 		virtual ~CPacket() {};
 
-		Type m_type;
+		const Type m_type;
 		data_t m_data;
 	};
 
@@ -77,8 +77,9 @@ namespace MQTT {
 		CPacketToSend(Type::Value type, size_t size = 100);
 
 		void add(const void* pData, size_t size);
-		void add(const std::string& str);
-		void add(int num);
+		void add(const data_t& data) { add(data.data(), data.size()); };
+		void add(const std::string& str) { add(str.size()); add(str.c_str(), str.size()); };
+		void add(uint16_t num, size_t size = sizeof(uint16_t)) { byte d[] = {HIBYTE(num), LOBYTE(num)}; add(&d[sizeof(uint16_t) - size], size); };
 		virtual const data_t& data();
 
 	protected:
@@ -103,6 +104,11 @@ namespace MQTT {
 
 		virtual const data_t& data() {
 			// TODO: Add Variable header and Payload to m_variableData
+			add("MQTT");			// Protocol Name
+			add(4, 1);				// Protocol Level
+			add(2, 1);				// Connect Flags(Clean Session = 1)
+			add(60);				// Keep Alive(second)
+			add("KYclient");		// Client Identifier
 
 			return CPacketToSend::data();
 		};

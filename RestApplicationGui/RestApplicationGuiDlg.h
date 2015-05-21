@@ -23,7 +23,7 @@ public:
 	CMqttState(Value value) : m_value(value) {};
 	inline operator Value() const { return m_value; };
 	inline bool isValid() const { return (Value::_Minimum < m_value) && (m_value < Value::_Count); };
-	operator LPSTR() const;
+	operator LPCSTR() const;
 
 protected:
 	Value m_value;
@@ -49,7 +49,7 @@ public:
 	virtual ~CMqttEvent() {};
 	inline operator Type() const { return m_type; };
 	inline bool isValid() const { return (Type::_Minimum < m_type) && (m_type < Type::_Count); };
-	operator LPSTR() const;
+	operator LPCSTR() const;
 
 protected:
 	Type m_type;

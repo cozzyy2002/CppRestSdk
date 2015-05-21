@@ -4,13 +4,18 @@
 using namespace MQTT;
 
 static log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("MQTT.CPacket"));
-static CReceivedPacket* ILLEGAL_PARSER(const CPacket::data_t&) { _ASSERTE(false); return (CReceivedPacket*)NULL; }
+
+static CReceivedPacket* ILLEGAL_PARSER(const data_t& data)
+{
+	LOG4CPLUS_ERROR(logger, "Packet type can't parse: " << data[3]);
+	return (CReceivedPacket*)NULL;
+}
 
 const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 //	flagBit	sendToServer	receiveFromServer	name				parser
 	0,		false,			false,				"Reserved(0)",		ILLEGAL_PARSER,
 	0,		true,			false,				"CONNECT",			ILLEGAL_PARSER,
-	0,		false,			true,				"CONNACK",			[](const CPacket::data_t& data) { return new CConnAckPacket(data); },
+	0,		false,			true,				"CONNACK",			[](const data_t& data) { return new CConnAckPacket(data); },
 	0,		true,			true,				"PUBLISH",			ILLEGAL_PARSER,
 	0,		true,			true,				"PUBACK",			ILLEGAL_PARSER,
 	0,		true,			true,				"PUBREC",			ILLEGAL_PARSER,
@@ -31,6 +36,22 @@ CPacketToSend::CPacketToSend(Type::Value type, size_t size /*= 100*/) : CPacket(
 	_ASSERTE(m_type.property().sendToServer);
 	_ASSERTE(size <= remainingLengthMax);
 	m_variableData.reserve(size);
+}
+
+void CPacketToSend::add(const void* pData, size_t size)
+{
+	byte* p = (byte*)pData;
+	m_variableData.insert(m_variableData.end(), p, &(p[size]));
+}
+
+const data_t& CPacketToSend::data()
+{
+	size_t remainingLength = m_variableData.size();
+	m_data.reserve(2 + remainingLength);
+	m_data.push_back(m_type.encode());
+	m_data.push_back(remainingLength);
+	m_data.insert(m_data.end(), m_variableData.begin(), m_variableData.end());
+	return m_data;
 }
 
 /*static*/ CReceivedPacket* CReceivedPacket::parse(const data_t& data)
