@@ -31,7 +31,7 @@ const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 	0,		false,			false,				"Reserved(15)",		CAN_NOT_CREATE,
 };
 
-CPacketToSend::CPacketToSend(Type::Value type, size_t size /*= 100*/) : CPacket(type)
+CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(type)
 {
 	_ASSERTE(m_type.property().sendToServer);
 	_ASSERTE(size <= remainingLengthMax);
@@ -77,7 +77,7 @@ const data_t& CPacketToSend::data()
 	}
 
 	byte typeValue = data[0];
-	if(!Type::validate(typeValue)) {
+	if(!Type::checkValue(typeValue)) {
 		LOG4CPLUS_ERROR(logger, "Invalid packet type: " << typeValue);
 		return NULL;
 	}
@@ -101,3 +101,12 @@ bool CReceivedPacket::parse()
 
 	return parseInternal();
 }
+
+const LPCSTR CConnAckPacket::CReturnCode::m_valueNames[Value::_Count] = {
+	_TO_STRING(ConnectionAccepted),
+	_TO_STRING(UnacceptableProtocolVersion),
+	_TO_STRING(IdentifierRejected),
+	_TO_STRING(ServerUnavailable),
+	_TO_STRING(BadUserNameOrPassword),
+	_TO_STRING(NotAuthorized),
+};

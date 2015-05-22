@@ -7,14 +7,9 @@ public:
 		_ASSERTE(min <= max);
 		_ASSERTE(isValid());
 	};
+
 	virtual ~CEnumValue() {};
 
-	template<typename T>
-	CEnumValue& operator=(T value) {
-		_ASSERTE(isValid(value));
-		m_value = value;
-		return *this;
-	};
 	template<typename T>
 	bool operator==(T value) const { return m_value == value; };
 
@@ -36,3 +31,6 @@ protected:
 	int m_max;
 	int m_min;
 };
+
+// Macro used by m_valueNames[] array in derived classes
+#define _TO_STRING(x) #x

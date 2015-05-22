@@ -196,21 +196,21 @@ void CRestApplicationGuiDlg::OnClickedButtonSubscibe()
 	// TODO: Add your control notification handler code here
 	CConnectPacket conn;
 	const byte* pConn = conn.data().data();
-	LOG4CPLUS_DEBUG(logger, "CConnectPacket: " << conn.type());
+	LOG4CPLUS_DEBUG(logger, "CConnectPacket: " << conn.toString());
 
 	CDisconnectPacket disc;
 	const byte* pDisc = disc.data().data();
-	LOG4CPLUS_DEBUG(logger, "CDisconnectPacket: " << disc.type());
+	LOG4CPLUS_DEBUG(logger, "CDisconnectPacket: " << disc.toString());
 
 	data_t test(4);
 	test[0] = 0x20;
 	test[1] = 0x02;
 	test[2] = 0x01;
-	test[3] = 0x05;
+	test[3] = 0x03;
 	CReceivedPacket* rec = CReceivedPacket::create(test);
 	_ASSERTE(rec);
 	CConnAckPacket* pConnAck = dynamic_cast<CConnAckPacket*>(rec);
-	LOG4CPLUS_DEBUG(logger, "CConnAckPacket: " << typeid(*rec).name() << "," << rec->type() << "," << pConnAck->returnCode);
+	LOG4CPLUS_DEBUG(logger, "CConnAckPacket: " << typeid(*rec).name() << "," << rec->type().toString() << "," << pConnAck->returnCode.toString());
 	delete rec;
 }
 
@@ -432,11 +432,11 @@ CMqttState CRestApplicationGuiDlg::handleConnAck(CMqttEvent* pEvent)
 	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
 	CConnAckPacket* packet = dynamic_cast<CConnAckPacket*>(p->m_packet);
 
-	if(packet->returnCode == CConnAckPacket::ReturnCode::ConnectionAccepted) {
+	if(packet->returnCode == CConnAckPacket::CReturnCode::ConnectionAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT CONNECT accepted.");
 		return CMqttState::Connected;
 	} else {
-		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode);
+		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode.toString());
 		m_client->close();
 		return CMqttState::Initial;
 	}
@@ -458,8 +458,6 @@ CMqttState CRestApplicationGuiDlg::handleFatal(CMqttEvent* pEvent)
 	LOG4CPLUS_FATAL(logger, "handleFatal(): event=" << typeid(*pEvent).name());
 	return m_mqttState;
 }
-
-#define _TO_STRING(x) #x
 
 const LPCSTR CMqttState::m_valueNames[Value::_Count] = {
 	_TO_STRING(Initial),

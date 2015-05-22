@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EnumValue.h"
+
 namespace MQTT {
 	typedef std::vector<byte> data_t;
 
@@ -8,9 +10,9 @@ namespace MQTT {
 	class CPacket {
 	public:
 		// MQTT Packet type
-		class Type {
+		class Type : public CEnumValue {
 		public:
-			typedef enum _Type : byte {
+			typedef enum _Value : byte {
 				Reserved_0,			// Reserved
 				CONNECT,			// Client request to connect to Server
 				CONNACK,			// Connect acknowledgment
@@ -40,32 +42,31 @@ namespace MQTT {
 			} Property;
 
 			// Constructor from Value type
-			Type(Value value) : m_value(value) { _ASSERTE(value < Value::_Count); };
+			Type(Value value) : CEnumValue(value) { _ASSERTE(isValid()); };
 			// Constructor from received data
 			// NOTE: Validate value using validate() method before create this object
-			Type(byte value) : m_value((Value)(value >> 4)) { _ASSERTE(validate(value)); };
+			Type(byte value) : CEnumValue((Value)(value >> 4)) { _ASSERTE(isValid()); };
 
-			inline static bool validate(byte value) { return ((value >> 4) < Value::_Count); };
+			inline static bool checkValue(byte value) { return ((value >> 4) < Value::_Count); };
 
 			// Encode value to byte to send to server with Flag bits
 			// NOTE: To decode received byte, use Type(byte) constructor
 			inline byte encode(byte flagBit = 0) const { return (m_value << 4) | property().flagBit | flagBit; };
-			inline operator Value() const { return m_value; };
-			inline operator LPCSTR() const { return property().name; };
+			inline virtual LPCSTR toString() const { return property().name; };
 			inline const Property& property() const { return m_properties[m_value]; };
 
 		protected:
 			static const Property m_properties[Type::_Count];
-			const Value m_value;
 		};
 
 		typedef data_t::size_type size_t;
 		static const size_t remainingLengthMax = 268435455;
 
 		inline const Type& type() const { return m_type; };
+		inline virtual LPCSTR toString() const { return m_type.toString(); };
 
 	protected:
-		CPacket(Type::Value type) : m_type(type) {};
+		CPacket(const Type& type) : m_type(type) {};
 		virtual ~CPacket() {};
 
 		const Type m_type;
@@ -74,7 +75,7 @@ namespace MQTT {
 
 	class CPacketToSend : virtual public CPacket {
 	public:
-		CPacketToSend(Type::Value type, size_t size = 100);
+		CPacketToSend(const Type& type, size_t size = 100);
 
 		void add(const void* pData, size_t size);
 		void add(const data_t& data) { add(data.data(), data.size()); };
@@ -101,7 +102,7 @@ namespace MQTT {
 		//virtual const data_t& payload() const;
 
 	protected:
-		CReceivedPacket(Type::Value type, const data_t& data)
+		CReceivedPacket(const Type& type, const data_t& data)
 			: CPacket(type), m_data(data) {};
 		bool parse();
 		virtual bool parseInternal() { return true; };
@@ -134,18 +135,28 @@ namespace MQTT {
 	public:
 		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data) {};
 
-		typedef enum _ReturnCode : byte {
-			ConnectionAccepted,
-			UnacceptableProtocolVersion,
-			IdentifierRejected,
-			ServerUnavailable,
-			BadUserNameOrPassword,
-			NotAuthorized,
-		} ReturnCode;
+		class CReturnCode : public CEnumValue {
+		public:
+			typedef enum _Value : byte {
+				ConnectionAccepted,
+				UnacceptableProtocolVersion,
+				IdentifierRejected,
+				ServerUnavailable,
+				BadUserNameOrPassword,
+				NotAuthorized,
+				_Count,
+			} Value;
 
-		ReturnCode returnCode;
+			CReturnCode(byte b = 0) : CEnumValue((Value)b) {};
+
+		protected:
+			static const LPCSTR m_valueNames[];
+			virtual const LPCSTR* getValueNames() const { return m_valueNames; };
+		};
+
+		CReturnCode returnCode;
 
 	protected:
-		virtual bool parseInternal() { returnCode = (ReturnCode)m_data[3]; return true; };
+		virtual bool parseInternal() { returnCode = m_data[3]; return true; };
 	};
 }
