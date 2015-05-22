@@ -308,9 +308,9 @@ void CRestApplicationGuiDlg::OnCancel()
 	}
 }
 
-void CRestApplicationGuiDlg::postEvent(CMqttEvent::Type type)
+void CRestApplicationGuiDlg::postEvent(CMqttEvent::Value value)
 {
-	postEvent(new CMqttEvent(type));
+	postEvent(new CMqttEvent(value));
 }
 
 void CRestApplicationGuiDlg::postEvent(CMqttEvent* pEvent)
@@ -321,7 +321,7 @@ void CRestApplicationGuiDlg::postEvent(CMqttEvent* pEvent)
 afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam)
 {
 	CMqttEvent* pEvent = (CMqttEvent*)lParam;
-	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_mqttState << ", event=" << *pEvent);
+	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_mqttState.toString() << ", event=" << pEvent->toString());
 
 	if(!m_mqttState.isValid()) {
 		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (byte)m_mqttState);
@@ -346,7 +346,7 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 #define _FATAL H(Fatal)
 #define _NOT_IMPL _FATAL
 
-const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count] =
+const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CMqttEvent::Value::_Count][CMqttState::_Count] =
 {
 	//	Initial				ConnectingSocket	ConnectingBroker	Connected			Subscribing			Subscribed			Disconnecting
 	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			H(Connect)	},		// Connect
@@ -418,7 +418,7 @@ CMqttState CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
 CMqttState CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
 {
 	CConnectPacket packet;
-	send(packet.data());
+	//send(packet.data());
 	return CMqttState::ConnectingBroker;
 }
 
@@ -429,7 +429,17 @@ CMqttState CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleConnAck(CMqttEvent* pEvent)
 {
-	return CMqttState::ConnectingBroker;
+	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
+	CConnAckPacket* packet = dynamic_cast<CConnAckPacket*>(p->m_packet);
+
+	if(packet->returnCode == CConnAckPacket::ReturnCode::ConnectionAccepted) {
+		LOG4CPLUS_INFO(logger, "MQTT CONNECT accepted.");
+		return CMqttState::Connected;
+	} else {
+		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode);
+		m_client->close();
+		return CMqttState::Initial;
+	}
 }
 
 CMqttState CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
@@ -451,34 +461,24 @@ CMqttState CRestApplicationGuiDlg::handleFatal(CMqttEvent* pEvent)
 
 #define _TO_STRING(x) #x
 
-CMqttState::operator LPCSTR() const
-{
-	static const LPCSTR names[Value::_Count] = {
-		_TO_STRING(Initial),
-		_TO_STRING(ConnectingSocket),
-		_TO_STRING(ConnectingBroker),
-		_TO_STRING(Connected),
-		_TO_STRING(Subscribing),
-		_TO_STRING(Subscribed),
-		_TO_STRING(Disconnecting)
-	};
+const LPCSTR CMqttState::m_valueNames[Value::_Count] = {
+	_TO_STRING(Initial),
+	_TO_STRING(ConnectingSocket),
+	_TO_STRING(ConnectingBroker),
+	_TO_STRING(Connected),
+	_TO_STRING(Subscribing),
+	_TO_STRING(Subscribed),
+	_TO_STRING(Disconnecting)
+};
 
-	return isValid() ? names[m_value] : "UNKNOWN";
-}
-
-CMqttEvent::operator LPCSTR() const
-{
-	static const LPCSTR names[Type::_Count] = {
-		_TO_STRING(Connect),
-		_TO_STRING(Disconnect),
-		_TO_STRING(ConnectedSocket),
-		_TO_STRING(ClosedSocket),
-		_TO_STRING(ConnAck),
-		_TO_STRING(SubAck),
-		_TO_STRING(Publish),
-		_TO_STRING(Published),
-		_TO_STRING(PingTimer),
-	};
-
-	return isValid() ? names[m_type] : "UNKNOWN";
-}
+const LPCSTR CMqttEvent::m_valueNames[Value::_Count] = {
+	_TO_STRING(Connect),
+	_TO_STRING(Disconnect),
+	_TO_STRING(ConnectedSocket),
+	_TO_STRING(ClosedSocket),
+	_TO_STRING(ConnAck),
+	_TO_STRING(SubAck),
+	_TO_STRING(Publish),
+	_TO_STRING(Published),
+	_TO_STRING(PingTimer),
+};

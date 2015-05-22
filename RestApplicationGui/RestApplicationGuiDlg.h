@@ -5,8 +5,9 @@
 #pragma once
 #include "afxwin.h"
 #include "Packet.h"
+#include "EnumValue.h"
 
-class CMqttState {
+class CMqttState : public CEnumValue {
 public:
 	typedef enum _Value {
 		_Minimum = -1,
@@ -20,19 +21,17 @@ public:
 		_Count					// Count of enum value for boundary check
 	} Value;
 
-	CMqttState() : m_value(Initial) {};
-	CMqttState(Value value) : m_value(value) {};
-	inline operator Value() const { return m_value; };
-	inline bool isValid() const { return (Value::_Minimum < m_value) && (m_value < Value::_Count); };
-	operator LPCSTR() const;
+	CMqttState() : CEnumValue(Initial) {};
+	CMqttState(Value value) : CEnumValue(value) {};
 
 protected:
-	Value m_value;
+	static const LPCSTR m_valueNames[];
+	virtual const LPCSTR* getValueNames() const { return m_valueNames; };
 };
 
-class CMqttEvent {
+class CMqttEvent : public CEnumValue {
 public:
-	typedef enum _Type {
+	typedef enum _Value {
 		_Minimum = -1,
 		Connect,			// Request to connect to MQTT broker
 		Disconnect,			// Request to disconnect MQTT broker
@@ -44,17 +43,13 @@ public:
 		Published,			// MQTT PUBLISH is received
 		PingTimer,			// Timeout of PING timer
 		_Count				// Count of enum value for boundary check
-	} Type;
+	} Value;
 
-	explicit CMqttEvent() {};
-	explicit CMqttEvent(Type type) : m_type(type) {};
-	virtual ~CMqttEvent() {};
-	inline operator Type() const { return m_type; };
-	inline bool isValid() const { return (Type::_Minimum < m_type) && (m_type < Type::_Count); };
-	operator LPCSTR() const;
+	explicit CMqttEvent(Value value = Value::Connect) : CEnumValue(value) {};
 
 protected:
-	Type m_type;
+	static const LPCSTR m_valueNames[];
+	virtual const LPCSTR* getValueNames() const { return m_valueNames; };
 };
 
 class CReceivedPacketEvent : public CMqttEvent {
@@ -62,13 +57,13 @@ public:
 	CReceivedPacketEvent(MQTT::CReceivedPacket* packet) : m_packet(packet) {
 		switch(packet->type()) {
 		case MQTT::CPacket::Type::CONNACK:
-			m_type = ConnAck;
+			m_value = ConnAck;
 			break;
 		case MQTT::CPacket::Type::SUBACK:
-			m_type = SubAck;
+			m_value = SubAck;
 			break;
 		case MQTT::CPacket::Type::PUBLISH:
-			m_type = Published;
+			m_value = Published;
 			break;
 		case MQTT::CPacket::Type::PINGRESP:
 			// No associated event.
@@ -93,9 +88,9 @@ protected:
 	CMqttState m_mqttState;
 
 	typedef CMqttState (CRestApplicationGuiDlg::*event_handler_t)(CMqttEvent* pEvent);
-	static const event_handler_t state_event_table[CMqttEvent::Type::_Count][CMqttState::_Count];
+	static const event_handler_t state_event_table[CMqttEvent::Value::_Count][CMqttState::Value::_Count];
 
-	void postEvent(CMqttEvent::Type type);
+	void postEvent(CMqttEvent::Value value);
 	void postEvent(CMqttEvent* pEvent);
 	void send(const MQTT::data_t& data);
 	CMqttState handleConnect(CMqttEvent* pEvent);

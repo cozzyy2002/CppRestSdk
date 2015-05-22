@@ -117,6 +117,7 @@ xcopy /D /Y /I "$(SolutionDir)log4cplus.properties" "$(ProjectDir)"</Command>
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EnumValue.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="RestApplicationGui.h" />
