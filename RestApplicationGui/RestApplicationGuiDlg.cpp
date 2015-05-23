@@ -350,21 +350,20 @@ const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_even
 {
 	//	Initial				ConnectingSocket	ConnectingBroker	Connected			Subscribing			Subscribed			Disconnecting
 	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			H(Connect)	},		// Connect
-	{	_IGNORE,			H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},		// Disconnect
+	{	_IGNORE,			H(DisconnectSocket),H(DisconnectSocket),H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},		// Disconnect
 	{	_FATAL,				H(ConnectedSocket),	_FATAL,				_FATAL,				_FATAL,				_FATAL,				_FATAL		},		// ConnectedSocket
-	{	_NOT_IMPL,			H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket)	},	// ClosedSocket
-	{	_NOT_IMPL,			_NOT_IMPL,			H(ConnAck),			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnAck
+	{	_IGNORE,			H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket)	},	// ClosedSocket
+	{	_FATAL,				_FATAL,				H(ConnAck),			_FATAL,				_FATAL,				_FATAL,				_IGNORE	},			// ConnAck
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubAck
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Publish
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Published
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// PingTimer
 };
 
-void CRestApplicationGuiDlg::send(const data_t& data)
+void CRestApplicationGuiDlg::send(const data_t& data, bool wait /*= false*/)
 {
-	// Copy data to buffer
-	// And wait for buffer to cmplete copying
-	// to prevent data from being deleted
+	// Copy data to buffer.
+	// And wait for buffer to cmplete copying to prevent data from being deleted.
 	producer_consumer_buffer<byte> buf;
 	size_t size = buf.putn(data.data(), data.size()).get();
 
@@ -372,12 +371,29 @@ void CRestApplicationGuiDlg::send(const data_t& data)
 	// See https://casablanca.codeplex.com/wikipage?title=Web%20Socket&referringTitle=Documentation
 	websocket_outgoing_message msg;
 	msg.set_binary_message(buf.create_istream(), size);
-	m_client->send(msg)
+	auto task = m_client->send(msg)
 		.then([](pplx::task<void> task) {
 			try {
 				task.get();
 			} catch(const websocket_exception& e) {
 				LOG4CPLUS_ERROR(logger, "Exception while sending WebSocket message: " << e.what());
+			}
+		});
+	if(wait) task.wait();
+}
+
+void CRestApplicationGuiDlg::receive(const web::websockets::client::websocket_incoming_message& msg)
+{
+	size_t size = msg.length();
+	auto data = std::make_shared<data_t>();
+	data->resize(size);
+	msg.body().streambuf().getn(&data->at(0), size)
+		.then([this, data](size_t size) {
+			LOG4CPLUS_DEBUG(logger, "Received " << size << "bytes");
+			CReceivedPacket* packet = CReceivedPacket::create(*data);
+			if(packet) {
+				LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name());
+				postEvent(new CReceivedPacketEvent(packet));
 			}
 		});
 }
@@ -390,20 +406,7 @@ CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 	websocket_client_config config;
 	config.add_subprotocol(U("mqtt"));
 	m_client.reset(new websocket_callback_client(config));
-	m_client->set_message_handler([this](const websocket_incoming_message& msg) {
-		size_t size = msg.length();
-		auto data = std::make_shared<data_t>();
-		data->resize(size);
-		msg.body().streambuf().getn(&data->at(0), size)
-			.then([this, data](size_t size) {
-				LOG4CPLUS_DEBUG(logger, "Received " << size << "bytes");
-				CReceivedPacket* packet = CReceivedPacket::create(*data);
-				if(packet) {
-					LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name());
-					postEvent(new CReceivedPacketEvent(packet));
-				}
-			});
-	});
+	m_client->set_message_handler(std::bind(&CRestApplicationGuiDlg::receive, this, std::placeholders::_1));
 	m_client->set_close_handler([this](websocket_close_status status, const string_t& reason, const std::error_code& error) {
 		log(U("close_handler: status=%1!d!, reason='%2', error='%3'"),
 			status, reason.c_str(), to_string_t(error.message().c_str()).c_str());
@@ -421,6 +424,16 @@ CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
 {
+	// Send Disconnect MQTT message then disconnect socket
+	CDisconnectPacket packet;
+	send(packet.data(), true);
+
+	return handleDisconnectSocket(pEvent);
+}
+
+CMqttState CRestApplicationGuiDlg::handleDisconnectSocket(CMqttEvent* pEvent)
+{
+	// Disconnect socket
 	m_client->close();
 	return CMqttState::Disconnecting;
 }

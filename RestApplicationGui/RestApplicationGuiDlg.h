@@ -92,9 +92,11 @@ protected:
 
 	void postEvent(CMqttEvent::Value value);
 	void postEvent(CMqttEvent* pEvent);
-	void send(const MQTT::data_t& data);
+	void send(const MQTT::data_t& data, bool wait = false);
+	void receive(const web::websockets::client::websocket_incoming_message& msg);
 	CMqttState handleConnect(CMqttEvent* pEvent);
 	CMqttState handleDisconnect(CMqttEvent* pEvent);
+	CMqttState handleDisconnectSocket(CMqttEvent* pEvent);
 	CMqttState handleConnectedSocket(CMqttEvent* pEvent);
 	CMqttState handleClosedSocket(CMqttEvent* pEvent);
 	CMqttState handleConnAck(CMqttEvent* pEvent);
