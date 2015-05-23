@@ -91,6 +91,7 @@ namespace MQTT {
 
 		// Variable header and Payload
 		data_t m_variableData;
+		static uint16_t m_packetIdentifier;
 	};
 
 	class CReceivedPacket : virtual public CPacket {
@@ -155,11 +156,60 @@ namespace MQTT {
 		};
 
 		CReturnCode returnCode;
+		bool isAccepted;
 
 	protected:
 		virtual bool parseInternal() {
 			returnCode = m_data[3];
+			isAccepted = (returnCode == CReturnCode::ConnectionAccepted);
 			return true;
 		};
+	};
+
+	class CSubscribePacket : public CPacketToSend {
+	public:
+		CSubscribePacket(const std::string& topic)
+			: CPacket(Type::SUBSCRIBE), CPacketToSend(m_type), m_topic(topic) {};
+
+		virtual const data_t& data() {
+			add(m_packetIdentifier);
+			add(m_topic);
+			add((byte)0);		// QoS
+
+			return CPacketToSend::data();
+		};
+
+		std::string m_topic;
+	};
+
+	class CSubAckPacket : public CReceivedPacket {
+	public:
+		CSubAckPacket(const data_t& data) : CPacket(Type::SUBACK), CReceivedPacket(m_type, data) {};
+
+		uint16_t packetIdentifire;
+		byte qos;
+		bool isAccepted;
+
+		virtual bool parseInternal() {
+			packetIdentifire = MAKEWORD(m_data[3], m_data[2]);
+			qos = m_data[4] & 0x03;
+			isAccepted = (m_data[4] & 0x80) == 0;
+			return true;
+		};
+	};
+
+	class CPublishPacket : public CReceivedPacket {
+	public:
+		CPublishPacket(const data_t& data) : CPacket(Type::PUBLISH), CReceivedPacket(m_type, data) {};
+
+		virtual bool parseInternal() {
+			size_t size = MAKEWORD(m_data[3], m_data[2]);
+			topic.assign((LPCSTR)&m_data[4], size);
+			payload.assign(m_data.begin() + 4 + size, m_data.end());
+			return true;
+		};
+
+		std::string topic;
+		data_t payload;
 	};
 }

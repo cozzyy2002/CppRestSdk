@@ -15,8 +15,6 @@ public:
 		ConnectingSocket,		// Waiting for WebSocket to connect
 		ConnectingBroker,		// Waiting for CONNACK MQTT control packet
 		Connected,				// Connected to MQTT broker but not subscribed
-		Subscribing,			// Waiting for SUBACK MQTT control packet
-		Subscribed,				// Subscribed
 		Disconnecting,			// Disconnecting
 		_Count					// Count of enum value for boundary check
 	} Value;
@@ -38,6 +36,7 @@ public:
 		ConnectedSocket,	// websocket_client::connect() task is completed
 		ClosedSocket,		// websocket_client::close_handler is called
 		ConnAck,			// MQTT CONNACK is received
+		Subscribe,			// Request to subscribe
 		SubAck,				// MQTT SUBACK is received
 		Publish,			// Requtest to publish message
 		Published,			// MQTT PUBLISH is received
@@ -50,6 +49,14 @@ public:
 protected:
 	static const LPCSTR m_valueNames[];
 	virtual const LPCSTR* getValueNames() const { return m_valueNames; };
+};
+
+class CSubscribeEvent : public CMqttEvent {
+public:
+	CSubscribeEvent(const std::string& topic)
+		: CMqttEvent(Value::Subscribe), topic(topic) {};
+
+	const std::string topic;
 };
 
 class CReceivedPacketEvent : public CMqttEvent {
@@ -92,7 +99,7 @@ protected:
 
 	void postEvent(CMqttEvent::Value value);
 	void postEvent(CMqttEvent* pEvent);
-	void send(const MQTT::data_t& data, bool wait = false);
+	void send(MQTT::CPacketToSend& packet, bool wait = false);
 	void receive(const web::websockets::client::websocket_incoming_message& msg);
 	CMqttState handleConnect(CMqttEvent* pEvent);
 	CMqttState handleDisconnect(CMqttEvent* pEvent);
@@ -100,6 +107,8 @@ protected:
 	CMqttState handleConnectedSocket(CMqttEvent* pEvent);
 	CMqttState handleClosedSocket(CMqttEvent* pEvent);
 	CMqttState handleConnAck(CMqttEvent* pEvent);
+	CMqttState handleSubscribe(CMqttEvent* pEvent);
+	CMqttState handleSubAck(CMqttEvent* pEvent);
 	CMqttState handlePingTimer(CMqttEvent* pEvent);
 
 	CMqttState handleIgnore(CMqttEvent* pEvent);

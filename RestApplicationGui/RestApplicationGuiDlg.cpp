@@ -193,25 +193,9 @@ void CRestApplicationGuiDlg::OnClickedButtonDisconnect()
 
 void CRestApplicationGuiDlg::OnClickedButtonSubscibe()
 {
-	// TODO: Add your control notification handler code here
-	CConnectPacket conn;
-	const byte* pConn = conn.data().data();
-	LOG4CPLUS_DEBUG(logger, "CConnectPacket: " << conn.toString());
-
-	CDisconnectPacket disc;
-	const byte* pDisc = disc.data().data();
-	LOG4CPLUS_DEBUG(logger, "CDisconnectPacket: " << disc.toString());
-
-	data_t test(4);
-	test[0] = 0x20;
-	test[1] = 0x02;
-	test[2] = 0x01;
-	test[3] = 0x03;
-	CReceivedPacket* rec = CReceivedPacket::create(test);
-	_ASSERTE(rec);
-	CConnAckPacket* pConnAck = dynamic_cast<CConnAckPacket*>(rec);
-	LOG4CPLUS_DEBUG(logger, "CConnAckPacket: " << typeid(*rec).name() << "," << rec->type().toString() << "," << pConnAck->returnCode.toString());
-	delete rec;
+	UpdateData();
+	ATL::CT2A topic(m_Topic);
+	postEvent(new CSubscribeEvent((LPCSTR)topic));
 }
 
 
@@ -348,23 +332,25 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 
 const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_event_table[CMqttEvent::Value::_Count][CMqttState::_Count] =
 {
-	//	Initial				ConnectingSocket	ConnectingBroker	Connected			Subscribing			Subscribed			Disconnecting
-	{	H(Connect),			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			_IGNORE,			H(Connect)	},		// Connect
-	{	_IGNORE,			H(DisconnectSocket),H(DisconnectSocket),H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},		// Disconnect
-	{	_FATAL,				H(ConnectedSocket),	_FATAL,				_FATAL,				_FATAL,				_FATAL,				_FATAL		},		// ConnectedSocket
-	{	_IGNORE,			H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket)	},	// ClosedSocket
-	{	_FATAL,				_FATAL,				H(ConnAck),			_FATAL,				_FATAL,				_FATAL,				_IGNORE	},			// ConnAck
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubAck
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Publish
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Published
-	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// PingTimer
+	//	Initial					ConnectingSocket		ConnectingBroker		Connected				Disconnecting
+	{	H(Connect),				_IGNORE,				_IGNORE,				_IGNORE,				H(Connect)	},		// Connect
+	{	_IGNORE,				H(DisconnectSocket),	H(DisconnectSocket),	H(Disconnect),			_IGNORE		},		// Disconnect
+	{	_FATAL,					H(ConnectedSocket),		_FATAL,					_FATAL,					_FATAL		},		// ConnectedSocket
+	{	_IGNORE,				H(ClosedSocket),		H(ClosedSocket),		H(ClosedSocket),		H(ClosedSocket)	},	// ClosedSocket
+	{	_FATAL,					_FATAL,					H(ConnAck),				_FATAL,					_IGNORE	},			// ConnAck
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Subscribe),			_IGNORE	},			// Subscribe
+	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// SubAck
+	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// Publish
+	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// Published
+	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// PingTimer
 };
 
-void CRestApplicationGuiDlg::send(const data_t& data, bool wait /*= false*/)
+void CRestApplicationGuiDlg::send(CPacketToSend& packet, bool wait /*= false*/)
 {
 	// Copy data to buffer.
 	// And wait for buffer to cmplete copying to prevent data from being deleted.
 	producer_consumer_buffer<byte> buf;
+	const data_t& data = packet.data();
 	size_t size = buf.putn(data.data(), data.size()).get();
 
 	// Send message to the server
@@ -426,7 +412,7 @@ CMqttState CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
 {
 	// Send Disconnect MQTT message then disconnect socket
 	CDisconnectPacket packet;
-	send(packet.data(), true);
+	send(packet, true);
 
 	return handleDisconnectSocket(pEvent);
 }
@@ -441,7 +427,7 @@ CMqttState CRestApplicationGuiDlg::handleDisconnectSocket(CMqttEvent* pEvent)
 CMqttState CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
 {
 	CConnectPacket packet;
-	send(packet.data());
+	send(packet);
 	return CMqttState::ConnectingBroker;
 }
 
@@ -453,17 +439,39 @@ CMqttState CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
 CMqttState CRestApplicationGuiDlg::handleConnAck(CMqttEvent* pEvent)
 {
 	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
-	CConnAckPacket* connAck = dynamic_cast<CConnAckPacket*>(p->m_packet);
-	_ASSERTE(connAck);
+	CConnAckPacket* packet = dynamic_cast<CConnAckPacket*>(p->m_packet);
+	_ASSERTE(packet);
 
-	if(connAck->returnCode == CConnAckPacket::CReturnCode::ConnectionAccepted) {
+	if(packet->isAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT CONNECT accepted.");
 		return CMqttState::Connected;
 	} else {
-		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << connAck->returnCode.toString());
+		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode.toString());
 		m_client->close();
 		return CMqttState::Initial;
 	}
+}
+
+CMqttState CRestApplicationGuiDlg::handleSubscribe(CMqttEvent* pEvent)
+{
+	CSubscribeEvent* p = dynamic_cast<CSubscribeEvent*>(pEvent);
+	_ASSERTE(p);
+	CSubscribePacket packet(p->topic);
+	send(packet);
+	return m_mqttState;
+}
+CMqttState CRestApplicationGuiDlg::handleSubAck(CMqttEvent* pEvent)
+{
+	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
+	CSubAckPacket* packet = dynamic_cast<CSubAckPacket*>(p->m_packet);
+	_ASSERTE(packet);
+
+	if(packet->isAccepted) {
+		LOG4CPLUS_INFO(logger, "MQTT SUBSCRIBE accepted.");
+	} else {
+		LOG4CPLUS_ERROR(logger, "MQTT SUBSCRIBE rejected");
+	}
+	return m_mqttState;
 }
 
 CMqttState CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
@@ -488,8 +496,6 @@ const LPCSTR CMqttState::m_valueNames[Value::_Count] = {
 	_TO_STRING(ConnectingSocket),
 	_TO_STRING(ConnectingBroker),
 	_TO_STRING(Connected),
-	_TO_STRING(Subscribing),
-	_TO_STRING(Subscribed),
 	_TO_STRING(Disconnecting)
 };
 
@@ -499,6 +505,7 @@ const LPCSTR CMqttEvent::m_valueNames[Value::_Count] = {
 	_TO_STRING(ConnectedSocket),
 	_TO_STRING(ClosedSocket),
 	_TO_STRING(ConnAck),
+	_TO_STRING(Subscribe),
 	_TO_STRING(SubAck),
 	_TO_STRING(Publish),
 	_TO_STRING(Published),

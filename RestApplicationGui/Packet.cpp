@@ -7,7 +7,7 @@ static log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT(
 
 static CReceivedPacket* CAN_NOT_CREATE(const data_t& data)
 {
-	LOG4CPLUS_ERROR(logger, "Packet type can't create CReceivedPacket: " << data[3]);
+	LOG4CPLUS_ERROR(logger, "Packet type can't create CReceivedPacket: " << (data[0] >> 4));
 	return (CReceivedPacket*)NULL;
 }
 
@@ -16,13 +16,13 @@ const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 	0,		false,			false,				"Reserved(0)",		CAN_NOT_CREATE,
 	0,		true,			false,				"CONNECT",			CAN_NOT_CREATE,
 	0,		false,			true,				"CONNACK",			[](const data_t& data) { return new CConnAckPacket(data); },
-	0,		true,			true,				"PUBLISH",			CAN_NOT_CREATE,
+	0,		true,			true,				"PUBLISH",			[](const data_t& data) { return new CPublishPacket(data); },
 	0,		true,			true,				"PUBACK",			CAN_NOT_CREATE,
 	0,		true,			true,				"PUBREC",			CAN_NOT_CREATE,
 	2,		true,			true,				"PUBREL",			CAN_NOT_CREATE,
 	0,		true,			true,				"PUBCOMP",			CAN_NOT_CREATE,
 	2,		true,			false,				"SUBSCRIBE",		CAN_NOT_CREATE,
-	0,		false,			true,				"SUBACK",			CAN_NOT_CREATE,
+	0,		false,			true,				"SUBACK",			[](const data_t& data) { return new CSubAckPacket(data); },
 	2,		true,			false,				"UNSUBSCRIBE",		CAN_NOT_CREATE,
 	0,		false,			true,				"UNSUBACK",			CAN_NOT_CREATE,
 	0,		true,			false,				"PINGREQ",			CAN_NOT_CREATE,
@@ -31,11 +31,15 @@ const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 	0,		false,			false,				"Reserved(15)",		CAN_NOT_CREATE,
 };
 
+/*static*/ uint16_t CPacketToSend::m_packetIdentifier = 0;
+
 CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(type)
 {
 	_ASSERTE(m_type.property().sendToServer);
 	_ASSERTE(size <= remainingLengthMax);
 	m_variableData.reserve(size);
+
+	if(0 == ++m_packetIdentifier) m_packetIdentifier = 1;
 }
 
 void CPacketToSend::add(const void* pData, size_t size)
