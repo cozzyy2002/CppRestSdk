@@ -157,6 +157,9 @@ namespace MQTT {
 		CReturnCode returnCode;
 
 	protected:
-		virtual bool parseInternal() { returnCode = m_data[3]; return true; };
+		virtual bool parseInternal() {
+			returnCode = m_data[3];
+			return true;
+		};
 	};
 }

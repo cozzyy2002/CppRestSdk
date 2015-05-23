@@ -328,7 +328,7 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 		return 0;
 	}
 	if(!pEvent->isValid()) {
-		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (byte)m_mqttState);
+		LOG4CPLUS_FATAL(logger, "m_mqttEven is out of range: " << (byte)m_mqttState);
 		return 0;
 	}
 
@@ -353,7 +353,7 @@ const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_even
 	{	_IGNORE,			H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		H(Disconnect),		_IGNORE		},		// Disconnect
 	{	_FATAL,				H(ConnectedSocket),	_FATAL,				_FATAL,				_FATAL,				_FATAL,				_FATAL		},		// ConnectedSocket
 	{	_NOT_IMPL,			H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket),	H(ClosedSocket)	},	// ClosedSocket
-	{	_NOT_IMPL,			H(ConnAck),			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnAck
+	{	_NOT_IMPL,			_NOT_IMPL,			H(ConnAck),			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// ConnAck
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// SubAck
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Publish
 	{	_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL,			_NOT_IMPL	},		// Published
@@ -362,13 +362,23 @@ const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_even
 
 void CRestApplicationGuiDlg::send(const data_t& data)
 {
-	auto buf = std::make_shared<streambuf<byte>>();
-	buf->putn(data.data(), data.size())
-		.then([this, buf](pplx::task<size_t> task) {
-			task.wait();
-			websocket_outgoing_message msg;
-			msg.set_binary_message(buf->create_istream());
-			m_client->send(msg);
+	// Copy data to buffer
+	// And wait for buffer to cmplete copying
+	// to prevent data from being deleted
+	producer_consumer_buffer<byte> buf;
+	size_t size = buf.putn(data.data(), data.size()).get();
+
+	// Send message to the server
+	// See https://casablanca.codeplex.com/wikipage?title=Web%20Socket&referringTitle=Documentation
+	websocket_outgoing_message msg;
+	msg.set_binary_message(buf.create_istream(), size);
+	m_client->send(msg)
+		.then([](pplx::task<void> task) {
+			try {
+				task.get();
+			} catch(const websocket_exception& e) {
+				LOG4CPLUS_ERROR(logger, "Exception while sending WebSocket message: " << e.what());
+			}
 		});
 }
 
@@ -381,13 +391,13 @@ CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 	config.add_subprotocol(U("mqtt"));
 	m_client.reset(new websocket_callback_client(config));
 	m_client->set_message_handler([this](const websocket_incoming_message& msg) {
-		auto in = std::make_shared<istream>();
-		msg.body().read_to_end(in->streambuf())
-			.then([this, in](size_t size) {
+		size_t size = msg.length();
+		auto data = std::make_shared<data_t>();
+		data->resize(size);
+		msg.body().streambuf().getn(&data->at(0), size)
+			.then([this, data](size_t size) {
 				LOG4CPLUS_DEBUG(logger, "Received " << size << "bytes");
-				data_t data(size);
-				in->streambuf().scopy(data.data(), size);
-				CReceivedPacket* packet = CReceivedPacket::create(data);
+				CReceivedPacket* packet = CReceivedPacket::create(*data);
 				if(packet) {
 					LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name());
 					postEvent(new CReceivedPacketEvent(packet));
@@ -418,7 +428,7 @@ CMqttState CRestApplicationGuiDlg::handleDisconnect(CMqttEvent* pEvent)
 CMqttState CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
 {
 	CConnectPacket packet;
-	//send(packet.data());
+	send(packet.data());
 	return CMqttState::ConnectingBroker;
 }
 
@@ -430,13 +440,14 @@ CMqttState CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
 CMqttState CRestApplicationGuiDlg::handleConnAck(CMqttEvent* pEvent)
 {
 	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
-	CConnAckPacket* packet = dynamic_cast<CConnAckPacket*>(p->m_packet);
+	CConnAckPacket* connAck = dynamic_cast<CConnAckPacket*>(p->m_packet);
+	_ASSERTE(connAck);
 
-	if(packet->returnCode == CConnAckPacket::CReturnCode::ConnectionAccepted) {
+	if(connAck->returnCode == CConnAckPacket::CReturnCode::ConnectionAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT CONNECT accepted.");
 		return CMqttState::Connected;
 	} else {
-		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode.toString());
+		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << connAck->returnCode.toString());
 		m_client->close();
 		return CMqttState::Initial;
 	}
