@@ -37,7 +37,7 @@ CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(
 {
 	_ASSERTE(m_type.property.sendToServer);
 	_ASSERTE(size <= remainingLengthMax);
-	m_variableData.reserve(size);
+	m_remainings.reserve(size);
 
 	if(0 == ++m_packetIdentifier) m_packetIdentifier = 1;
 }
@@ -45,7 +45,7 @@ CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(
 void CPacketToSend::add(const void* pData, size_t size)
 {
 	byte* p = (byte*)pData;
-	m_variableData.insert(m_variableData.end(), p, &(p[size]));
+	m_remainings.insert(m_remainings.end(), p, &(p[size]));
 }
 
 void CPacketToSend::add(uint32_t num, size_t size /*= sizeof(uint32_t)*/)
@@ -64,11 +64,27 @@ void CPacketToSend::add(uint32_t num, size_t size /*= sizeof(uint32_t)*/)
 
 const data_t& CPacketToSend::data()
 {
-	m_data.reserve(2 + m_variableData.size());
-	m_data.push_back(m_type.encode());
-	m_data.push_back((byte)remainingLength());
-	if(!m_variableData.empty()) {
-		m_data.insert(m_data.end(), m_variableData.begin(), m_variableData.end());
+	// Encode Remaining Length
+	// http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
+	size_t X = m_remainings.size();
+	byte remainingLength[4];
+	int i = 0;			// Index of remainingLength array
+	do {
+		byte& encodedByte = remainingLength[i++];
+		encodedByte = X % 128;
+		X = X / 128;
+		// if there are more data to encode, set the top bit of this byte
+		if(X > 0) {
+			encodedByte = encodedByte | 128;
+		}
+	} while((X > 0) && (i < ARRAYSIZE(remainingLength)));
+
+	// Build MQTT control packet
+	m_data.reserve(1 + i + m_remainings.size());
+	m_data.push_back(m_type.encode());												// Pcket type and flags
+	m_data.insert(m_data.end(), remainingLength, &remainingLength[i]);				// Remaining Length
+	if(!m_remainings.empty()) {
+		m_data.insert(m_data.end(), m_remainings.begin(), m_remainings.end());		// Variable header and Payload, if any
 	}
 	return m_data;
 }

@@ -86,11 +86,8 @@ namespace MQTT {
 		virtual const data_t& data();
 
 	protected:
-		// Returns size of m_variableData encoded using MQTT Remaining Length encoding scheme
-		size_t remainingLength() const { return m_variableData.size(); };
-
 		// Variable header and Payload
-		data_t m_variableData;
+		data_t m_remainings;
 		static uint16_t m_packetIdentifier;
 	};
 
@@ -115,7 +112,7 @@ namespace MQTT {
 		CConnectPacket() : CPacket(Type::CONNECT), CPacketToSend(m_type) {};
 
 		virtual const data_t& data() {
-			// TODO: Add Variable header and Payload to m_variableData
+			// TODO: Add Variable header and Payload to m_remainings
 			add("MQTT");			// Protocol Name
 			add((byte)4);			// Protocol Level
 			add((byte)2);			// Connect Flags(Clean Session = 1)
