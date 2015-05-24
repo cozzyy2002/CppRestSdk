@@ -112,7 +112,6 @@ namespace MQTT {
 		CConnectPacket() : CPacket(Type::CONNECT), CPacketToSend(m_type) {};
 
 		virtual const data_t& data() {
-			// TODO: Add Variable header and Payload to m_remainings
 			add("MQTT");			// Protocol Name
 			add((byte)4);			// Protocol Level
 			add((byte)2);			// Connect Flags(Clean Session = 1)
@@ -171,7 +170,6 @@ namespace MQTT {
 			add(m_packetIdentifier);
 			add(m_topic);
 			add((byte)0);		// QoS
-
 			return CPacketToSend::data();
 		};
 
@@ -194,14 +192,30 @@ namespace MQTT {
 		};
 	};
 
-	class CPublishPacket : public CReceivedPacket {
+	class CPublishPacket : public CPacketToSend, public CReceivedPacket {
 	public:
-		CPublishPacket(const data_t& data) : CPacket(Type::PUBLISH), CReceivedPacket(m_type, data) {};
+		// Constructor for packet to send
+		CPublishPacket(const std::string& topic, const data_t& payload)
+			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, payload)
+			, topic(topic), payload(payload) {};
+
+		virtual const data_t& data()
+		{
+			add(topic);
+			add(m_packetIdentifier);
+			add(payload);
+			return CPacketToSend::data();
+		};
+
+		// Constructor for received packet
+		CPublishPacket(const data_t& data)
+			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, data) {};
 
 		virtual bool parseInternal() {
 			size_t size = MAKEWORD(m_data[3], m_data[2]);
 			topic.assign((LPCSTR)&m_data[4], size);
-			payload.assign(m_data.begin() + 4 + size, m_data.end());
+			// NOTE: Packet Identifier is ignored
+			payload.assign(m_data.begin() + 4 + size + 2, m_data.end());
 			return true;
 		};
 

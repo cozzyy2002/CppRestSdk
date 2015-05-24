@@ -7,7 +7,8 @@ static log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT(
 
 static CReceivedPacket* CAN_NOT_CREATE(const data_t& data)
 {
-	LOG4CPLUS_ERROR(logger, "Packet type can't create CReceivedPacket: " << (data[0] >> 4));
+	CPacket::Type type(data[0]);
+	LOG4CPLUS_ERROR(logger, "Packet type can't create CReceivedPacket: " << type.toString());
 	return (CReceivedPacket*)NULL;
 }
 

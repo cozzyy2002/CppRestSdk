@@ -59,6 +59,15 @@ public:
 	const std::string topic;
 };
 
+class CPublishEvent : public CMqttEvent {
+public:
+	CPublishEvent(const std::string& topic, const MQTT::data_t& payload)
+		: CMqttEvent(Value::Publish), topic(topic), payload(payload) {};
+
+	const std::string topic;
+	const MQTT::data_t payload;
+};
+
 class CReceivedPacketEvent : public CMqttEvent {
 public:
 	CReceivedPacketEvent(MQTT::CReceivedPacket* packet) : m_packet(packet) {
@@ -80,8 +89,7 @@ public:
 		}
 	};
 
-	virtual ~CReceivedPacketEvent()
-	{
+	virtual ~CReceivedPacketEvent() {
 		delete m_packet;
 	};
 
@@ -109,6 +117,7 @@ protected:
 	CMqttState handleConnAck(CMqttEvent* pEvent);
 	CMqttState handleSubscribe(CMqttEvent* pEvent);
 	CMqttState handleSubAck(CMqttEvent* pEvent);
+	CMqttState handlePublish(CMqttEvent* pEvent);
 	CMqttState handlePublished(CMqttEvent* pEvent);
 	CMqttState handlePingTimer(CMqttEvent* pEvent);
 

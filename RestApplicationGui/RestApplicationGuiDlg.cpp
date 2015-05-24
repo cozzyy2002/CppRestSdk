@@ -207,7 +207,12 @@ void CRestApplicationGuiDlg::OnClickedButtonUnsubscibe()
 
 void CRestApplicationGuiDlg::OnClickedButtonPublish()
 {
-	// TODO: Add your control notification handler code here
+	UpdateData();
+	ATL::CT2A topic(m_Topic);
+	ATL::CT2A message(m_Payload);
+	data_t payload;
+	payload.assign((LPCSTR)message, &((LPCSTR)message)[m_Payload.GetLength()]);
+	postEvent(new CPublishEvent((LPCSTR)topic, payload));
 }
 
 void CRestApplicationGuiDlg::setConnectStatus()
@@ -337,11 +342,11 @@ const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_even
 	{	_IGNORE,				H(DisconnectSocket),	H(DisconnectSocket),	H(Disconnect),			_IGNORE		},		// Disconnect
 	{	_FATAL,					H(ConnectedSocket),		_FATAL,					_FATAL,					_FATAL		},		// ConnectedSocket
 	{	_IGNORE,				H(ClosedSocket),		H(ClosedSocket),		H(ClosedSocket),		H(ClosedSocket)	},	// ClosedSocket
-	{	_FATAL,					_FATAL,					H(ConnAck),				_FATAL,					_IGNORE	},			// ConnAck
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Subscribe),			_IGNORE	},			// Subscribe
+	{	_FATAL,					_FATAL,					H(ConnAck),				_FATAL,					_IGNORE		},		// ConnAck
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Subscribe),			_IGNORE		},		// Subscribe
 	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// SubAck
-	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// Publish
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Published),			_IGNORE	},			// Published
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Publish),				_IGNORE		},		// Publish
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Published),			_IGNORE		},		// Published
 	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// PingTimer
 };
 
@@ -460,6 +465,7 @@ CMqttState CRestApplicationGuiDlg::handleSubscribe(CMqttEvent* pEvent)
 	send(packet);
 	return m_mqttState;
 }
+
 CMqttState CRestApplicationGuiDlg::handleSubAck(CMqttEvent* pEvent)
 {
 	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
@@ -471,6 +477,15 @@ CMqttState CRestApplicationGuiDlg::handleSubAck(CMqttEvent* pEvent)
 	} else {
 		LOG4CPLUS_ERROR(logger, "MQTT SUBSCRIBE rejected");
 	}
+	return m_mqttState;
+}
+
+CMqttState CRestApplicationGuiDlg::handlePublish(CMqttEvent* pEvent)
+{
+	CPublishEvent* p = dynamic_cast<CPublishEvent*>(pEvent);
+	_ASSERTE(p);
+	CPublishPacket packet(p->topic, p->payload);
+	send(packet);
 	return m_mqttState;
 }
 
