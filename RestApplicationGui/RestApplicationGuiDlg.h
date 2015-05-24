@@ -109,6 +109,7 @@ protected:
 	CMqttState handleConnAck(CMqttEvent* pEvent);
 	CMqttState handleSubscribe(CMqttEvent* pEvent);
 	CMqttState handleSubAck(CMqttEvent* pEvent);
+	CMqttState handlePublished(CMqttEvent* pEvent);
 	CMqttState handlePingTimer(CMqttEvent* pEvent);
 
 	CMqttState handleIgnore(CMqttEvent* pEvent);

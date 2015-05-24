@@ -341,7 +341,7 @@ const CRestApplicationGuiDlg::event_handler_t CRestApplicationGuiDlg::state_even
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Subscribe),			_IGNORE	},			// Subscribe
 	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// SubAck
 	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// Publish
-	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// Published
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Published),			_IGNORE	},			// Published
 	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// PingTimer
 };
 
@@ -474,6 +474,19 @@ CMqttState CRestApplicationGuiDlg::handleSubAck(CMqttEvent* pEvent)
 	return m_mqttState;
 }
 
+CMqttState CRestApplicationGuiDlg::handlePublished(CMqttEvent* pEvent)
+{
+	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
+	CPublishPacket* packet = dynamic_cast<CPublishPacket*>(p->m_packet);
+	_ASSERTE(packet);
+
+	std::string text;
+	text.assign((LPCSTR)packet->payload.data(), packet->payload.size());
+	LOG4CPLUS_INFO(logger, "MQTT PUBLISH topic='" << packet->topic.c_str() << "', payload='" << text.c_str() << "'");
+
+	return m_mqttState;
+}
+
 CMqttState CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
 {
 	return m_mqttState;
@@ -481,13 +494,13 @@ CMqttState CRestApplicationGuiDlg::handlePingTimer(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleIgnore(CMqttEvent* pEvent)
 {
-	LOG4CPLUS_TRACE(logger, "handleIgnore(): event=" << typeid(*pEvent).name());
+	LOG4CPLUS_TRACE(logger, "handleIgnore(): event=" << pEvent->toString());
 	return m_mqttState;
 }
 
 CMqttState CRestApplicationGuiDlg::handleFatal(CMqttEvent* pEvent)
 {
-	LOG4CPLUS_FATAL(logger, "handleFatal(): event=" << typeid(*pEvent).name());
+	LOG4CPLUS_FATAL(logger, "handleFatal(): event=" << pEvent->toString());
 	return m_mqttState;
 }
 
