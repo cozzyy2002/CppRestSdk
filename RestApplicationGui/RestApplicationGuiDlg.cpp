@@ -378,7 +378,7 @@ void CRestApplicationGuiDlg::receive(const web::websockets::client::websocket_in
 			LOG4CPLUS_DEBUG(logger, "Received " << size << "bytes");
 			CReceivedPacket* packet = CReceivedPacket::create(*data);
 			if(packet) {
-				LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name());
+				LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name() << ", Remaining Length=" << packet->remainingLength);
 				postEvent(new CReceivedPacketEvent(packet));
 			}
 		});

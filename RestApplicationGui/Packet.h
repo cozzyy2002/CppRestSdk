@@ -42,18 +42,18 @@ namespace MQTT {
 			} Property;
 
 			// Constructor from Value type
-			Type(Value value) : CEnumValue(value) { _ASSERTE(isValid()); };
+			Type(Value value) : CEnumValue(value), property(m_properties[m_value]) {};
 			// Constructor from received data
 			// NOTE: Validate value using validate() method before create this object
-			Type(byte value) : CEnumValue((Value)(value >> 4)) { _ASSERTE(isValid()); };
+			Type(byte value) : CEnumValue((Value)(value >> 4)), property(m_properties[m_value]) {};
 
 			inline static bool checkValue(byte value) { return ((value >> 4) < Value::_Count); };
 
 			// Encode value to byte to send to server with Flag bits
 			// NOTE: To decode received byte, use Type(byte) constructor
-			inline byte encode(byte flagBit = 0) const { return (m_value << 4) | property().flagBit | flagBit; };
-			inline virtual LPCSTR toString() const { return property().name; };
-			inline const Property& property() const { return m_properties[m_value]; };
+			inline byte encode(byte flagBit = 0) const { return (m_value << 4) | property.flagBit | flagBit; };
+			inline virtual LPCSTR toString() const { return property.name; };
+			const Property& property;
 
 		protected:
 			static const Property m_properties[Type::_Count];
@@ -99,8 +99,7 @@ namespace MQTT {
 		static CReceivedPacket* create(const data_t& data);
 
 		// Returns decoded Remaining Length in received data
-		size_t remainingLength() const;
-		//virtual const data_t& payload() const;
+		size_t remainingLength;
 
 	protected:
 		CReceivedPacket(const Type& type, const data_t& data)

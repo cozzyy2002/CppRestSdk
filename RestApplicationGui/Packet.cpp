@@ -35,7 +35,7 @@ const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 
 CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(type)
 {
-	_ASSERTE(m_type.property().sendToServer);
+	_ASSERTE(m_type.property.sendToServer);
 	_ASSERTE(size <= remainingLengthMax);
 	m_variableData.reserve(size);
 
@@ -87,7 +87,7 @@ const data_t& CPacketToSend::data()
 	}
 
 	Type type(typeValue);
-	CReceivedPacket* packet = type.property().createPacket(data);
+	CReceivedPacket* packet = type.property.createPacket(data);
 	bool ok = (packet != NULL);
 	if(ok) {
 		ok = packet->parse();
@@ -101,7 +101,26 @@ const data_t& CPacketToSend::data()
 
 bool CReceivedPacket::parse()
 {
-	// TODO: Decode Remaining Length
+	// Decode Remaining Length
+	// See http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
+	size_t multiplier = 1;
+	size_t value = 0;
+	byte encodedByte;
+	size_t pos = 1;		// MSB position of Remaining Length in m_data
+	do {
+		encodedByte = m_data[pos++];	// 'next byte from stream'
+		value += (encodedByte & 127) * multiplier;
+		multiplier *= 128;
+		if((multiplier > 128 * 128 * 128) || (m_data.size() < pos)) {
+			LOG4CPLUS_ERROR(logger, "Malformed Remaing Length. multiplier=" << multiplier << ", pos=" << pos);
+			return false;
+		}
+	} while((encodedByte & 128) != 0);
+	remainingLength = value;
+	if(remainingLength + 2 != m_data.size()) {
+		LOG4CPLUS_ERROR(logger, "Wrong Remaining Length. " << remainingLength << ", packet size=" << m_data.size());
+		return false;
+	}
 
 	return parseInternal();
 }
