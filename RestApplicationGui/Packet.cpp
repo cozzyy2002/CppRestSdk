@@ -139,8 +139,7 @@ bool CReceivedPacket::parse()
 		return false;
 	}
 
-	m_remainingsPosition = pos;
-	return parseInternal();
+	return parseInternal(pos);
 }
 
 const LPCSTR CConnAckPacket::CReturnCode::m_valueNames[Value::_Count] = {
