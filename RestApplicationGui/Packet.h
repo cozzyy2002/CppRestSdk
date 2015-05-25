@@ -95,7 +95,7 @@ namespace MQTT {
 	public:
 		static CReceivedPacket* create(const data_t& data);
 
-		// Returns decoded Remaining Length in received data
+		// Decoded Remaining Length in received data
 		size_t remainingLength;
 
 	protected:
@@ -105,6 +105,9 @@ namespace MQTT {
 		virtual bool parseInternal() { return true; };
 
 		const data_t m_data;
+
+		// Top position of remainings(Variavle header)
+		size_t m_remainingsPosition;
 	};
 
 	class CConnectPacket : public CPacketToSend {
@@ -202,7 +205,7 @@ namespace MQTT {
 		virtual const data_t& data()
 		{
 			add(topic);
-			add(m_packetIdentifier);
+			// if(0 < QoS) add(m_packetIdentifier);
 			add(payload);
 			return CPacketToSend::data();
 		};
@@ -212,10 +215,11 @@ namespace MQTT {
 			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, data) {};
 
 		virtual bool parseInternal() {
-			size_t size = MAKEWORD(m_data[3], m_data[2]);
-			topic.assign((LPCSTR)&m_data[4], size);
-			// NOTE: Packet Identifier is ignored
-			payload.assign(m_data.begin() + 4 + size + 2, m_data.end());
+			size_t pos = m_remainingsPosition;
+			size_t size = MAKEWORD(m_data[pos + 1], m_data[pos]); pos += 2;
+			topic.assign((LPCSTR)&m_data[pos], size); pos += size;
+			// if(0 < QoS) paketIdentifier = WORD(m_data[pos]); pos += 2;
+			payload.assign(m_data.begin() + pos, m_data.end());
 			return true;
 		};
 

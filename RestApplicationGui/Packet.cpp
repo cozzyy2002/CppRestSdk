@@ -139,6 +139,7 @@ bool CReceivedPacket::parse()
 		return false;
 	}
 
+	m_remainingsPosition = pos;
 	return parseInternal();
 }
 
