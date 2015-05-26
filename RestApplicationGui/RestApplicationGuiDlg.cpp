@@ -443,9 +443,7 @@ CMqttState CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleConnAck(CMqttEvent* pEvent)
 {
-	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
-	CConnAckPacket* packet = dynamic_cast<CConnAckPacket*>(p->m_packet);
-	_ASSERTE(packet);
+	CConnAckPacket* packet = getReceivedPacket<CConnAckPacket>(pEvent);
 
 	if(packet->isAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT CONNECT accepted.");
@@ -459,8 +457,7 @@ CMqttState CRestApplicationGuiDlg::handleConnAck(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleSubscribe(CMqttEvent* pEvent)
 {
-	CSubscribeEvent* p = dynamic_cast<CSubscribeEvent*>(pEvent);
-	_ASSERTE(p);
+	CSubscribeEvent* p = getEvent<CSubscribeEvent>(pEvent);
 	CSubscribePacket packet(p->topic);
 	send(packet);
 	return m_mqttState;
@@ -468,9 +465,7 @@ CMqttState CRestApplicationGuiDlg::handleSubscribe(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleSubAck(CMqttEvent* pEvent)
 {
-	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
-	CSubAckPacket* packet = dynamic_cast<CSubAckPacket*>(p->m_packet);
-	_ASSERTE(packet);
+	CSubAckPacket* packet = getReceivedPacket<CSubAckPacket>(pEvent);
 
 	if(packet->isAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT SUBSCRIBE accepted.");
@@ -482,8 +477,7 @@ CMqttState CRestApplicationGuiDlg::handleSubAck(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handlePublish(CMqttEvent* pEvent)
 {
-	CPublishEvent* p = dynamic_cast<CPublishEvent*>(pEvent);
-	_ASSERTE(p);
+	CPublishEvent* p = getEvent<CPublishEvent>(pEvent);
 	CPublishPacket packet(p->topic, p->payload);
 	send(packet);
 	return m_mqttState;
@@ -491,9 +485,7 @@ CMqttState CRestApplicationGuiDlg::handlePublish(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handlePublished(CMqttEvent* pEvent)
 {
-	CReceivedPacketEvent* p = dynamic_cast<CReceivedPacketEvent*>(pEvent);
-	CPublishPacket* packet = dynamic_cast<CPublishPacket*>(p->m_packet);
-	_ASSERTE(packet);
+	CPublishPacket* packet = getReceivedPacket<CPublishPacket>(pEvent);
 
 	std::string text;
 	text.assign((LPCSTR)packet->payload.data(), packet->payload.size());

@@ -93,6 +93,9 @@ public:
 		delete m_packet;
 	};
 
+	inline MQTT::CReceivedPacket* packet() const { return m_packet; };
+
+protected:
 	MQTT::CReceivedPacket* m_packet;
 };
 
@@ -143,6 +146,23 @@ protected:
 		ConnectStatusClosing,
 	};
 	ConnectStatus m_ConnectStatus;
+
+	template<class event_t>
+	event_t* getEvent(CMqttEvent* e)
+	{
+		event_t* ret = dynamic_cast<event_t*>(e);
+		_ASSERTE(ret);
+		return ret;
+	}
+
+	template<class packet_t>
+	packet_t* getReceivedPacket(CMqttEvent* e)
+	{
+		CReceivedPacketEvent* p = getEvent<CReceivedPacketEvent>(e);
+		packet_t* packet = dynamic_cast<packet_t*>(p->packet());
+		_ASSERTE(packet);
+		return packet;
+	}
 
 
 // Construction
