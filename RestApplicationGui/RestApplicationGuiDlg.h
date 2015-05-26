@@ -51,6 +51,14 @@ protected:
 	virtual const LPCSTR* getValueNames() const { return m_valueNames; };
 };
 
+class CConnectEvent : public CMqttEvent {
+public:
+	CConnectEvent(LPCTSTR serverUrl)
+		: CMqttEvent(Value::Connect), serverUrl(serverUrl) {};
+
+	const utility::string_t serverUrl;
+};
+
 class CSubscribeEvent : public CMqttEvent {
 public:
 	CSubscribeEvent(const std::string& topic)

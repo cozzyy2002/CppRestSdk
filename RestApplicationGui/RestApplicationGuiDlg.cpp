@@ -181,7 +181,8 @@ HCURSOR CRestApplicationGuiDlg::OnQueryDragIcon()
 
 void CRestApplicationGuiDlg::OnClickedButtonConnect()
 {
-	postEvent(CMqttEvent::Connect);
+	UpdateData();
+	postEvent(new CConnectEvent((LPCTSTR)m_ServerUrl));
 }
 
 
@@ -313,17 +314,19 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_mqttState.toString() << ", event=" << pEvent->toString());
 
 	if(!m_mqttState.isValid()) {
-		LOG4CPLUS_FATAL(logger, "m_mqttState is out of range: " << (byte)m_mqttState);
+		LOG4CPLUS_FATAL(logger, "CMqttState is out of range: " << (byte)m_mqttState);
 		return 0;
 	}
 	if(!pEvent->isValid()) {
-		LOG4CPLUS_FATAL(logger, "m_mqttEven is out of range: " << (byte)m_mqttState);
+		LOG4CPLUS_FATAL(logger, "CMqttEvent is out of range: " << (byte)pEvent);
 		return 0;
 	}
 
 	event_handler_t handler = state_event_table[*pEvent][m_mqttState];
 	m_mqttState = (this->*handler)(pEvent);
 	delete pEvent;
+
+	LOG4CPLUS_TRACE(logger, "OnUserEvent(): new state=" << m_mqttState.toString());
 
 	m_ConnectStatusText = m_mqttState;
 	UpdateData(FALSE);
@@ -391,8 +394,9 @@ void CRestApplicationGuiDlg::receive(const web::websockets::client::websocket_in
 
 CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 {
-	UpdateData();
-	log(U("Connecting: '%1!s!'"), m_ServerUrl);
+	CConnectEvent* p = getEvent<CConnectEvent>(pEvent);
+	string_t serverUrl = p->serverUrl;
+	log(U("Connecting: '%1!s!'"), serverUrl.c_str());
 
 	websocket_client_config config;
 	config.add_subprotocol(U("mqtt"));
@@ -404,9 +408,9 @@ CMqttState CRestApplicationGuiDlg::handleConnect(CMqttEvent* pEvent)
 		postEvent(CMqttEvent::ClosedSocket);
 	});
 
-	m_client->connect((LPCTSTR)m_ServerUrl)
-		.then([this]() {
-			log(U("Connected: '%1'"), m_ServerUrl);
+	m_client->connect(serverUrl)
+		.then([this, serverUrl]() {
+			log(U("Connected: '%1'"), serverUrl.c_str());
 			postEvent(CMqttEvent::ConnectedSocket);
 		});
 
@@ -438,6 +442,7 @@ CMqttState CRestApplicationGuiDlg::handleConnectedSocket(CMqttEvent* pEvent)
 
 CMqttState CRestApplicationGuiDlg::handleClosedSocket(CMqttEvent* pEvent)
 {
+	m_client->close();
 	return CMqttState::Initial;
 }
 

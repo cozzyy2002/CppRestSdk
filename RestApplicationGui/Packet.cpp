@@ -12,22 +12,29 @@ static CReceivedPacket* CAN_NOT_CREATE(const data_t& data)
 	return (CReceivedPacket*)NULL;
 }
 
+static CReceivedPacket* NOT_IMPLEMENTED(const data_t& data)
+{
+	CPacket::Type type(data[0]);
+	LOG4CPLUS_ERROR(logger, "Packet type whose parser is not implemented yet: " << type.toString());
+	return (CReceivedPacket*)NULL;
+}
+
 const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 //	flagBit	sendToServer	receiveFromServer	name				createPacket
 	0,		false,			false,				"Reserved(0)",		CAN_NOT_CREATE,
 	0,		true,			false,				"CONNECT",			CAN_NOT_CREATE,
 	0,		false,			true,				"CONNACK",			[](const data_t& data) { return new CConnAckPacket(data); },
 	0,		true,			true,				"PUBLISH",			[](const data_t& data) { return new CPublishPacket(data); },
-	0,		true,			true,				"PUBACK",			CAN_NOT_CREATE,
-	0,		true,			true,				"PUBREC",			CAN_NOT_CREATE,
-	2,		true,			true,				"PUBREL",			CAN_NOT_CREATE,
-	0,		true,			true,				"PUBCOMP",			CAN_NOT_CREATE,
+	0,		true,			true,				"PUBACK",			NOT_IMPLEMENTED,
+	0,		true,			true,				"PUBREC",			NOT_IMPLEMENTED,
+	2,		true,			true,				"PUBREL",			NOT_IMPLEMENTED,
+	0,		true,			true,				"PUBCOMP",			NOT_IMPLEMENTED,
 	2,		true,			false,				"SUBSCRIBE",		CAN_NOT_CREATE,
 	0,		false,			true,				"SUBACK",			[](const data_t& data) { return new CSubAckPacket(data); },
 	2,		true,			false,				"UNSUBSCRIBE",		CAN_NOT_CREATE,
-	0,		false,			true,				"UNSUBACK",			CAN_NOT_CREATE,
+	0,		false,			true,				"UNSUBACK",			NOT_IMPLEMENTED,
 	0,		true,			false,				"PINGREQ",			CAN_NOT_CREATE,
-	0,		false,			true,				"PINGRESP",			CAN_NOT_CREATE,
+	0,		false,			true,				"PINGRESP",			NOT_IMPLEMENTED,
 	0,		true,			false,				"DISCONNECT",		CAN_NOT_CREATE,
 	0,		false,			false,				"Reserved(15)",		CAN_NOT_CREATE,
 };
