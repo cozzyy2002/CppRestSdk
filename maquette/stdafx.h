@@ -14,3 +14,8 @@
 
 
 // TODO: reference additional headers your program requires here
+#include <cpprest/ws_client.h>
+#include <cpprest/producerconsumerstream.h>
+#include <log4cplus/loggingmacros.h>
+
+typedef uint8_t byte;
