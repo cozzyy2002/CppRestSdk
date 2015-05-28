@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RestApplication", "RestAppl
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RestApplicationGui", "RestApplicationGui\RestApplicationGui.vcxproj", "{B22C5179-5C0A-44DE-9775-A0F6216987FF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "maquette", "maquette\maquette.vcxproj", "{E4212545-0D32-4AB8-84FC-01F5DF3FF394}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -21,6 +23,10 @@ Global
 		{B22C5179-5C0A-44DE-9775-A0F6216987FF}.Debug|Win32.Build.0 = Debug|Win32
 		{B22C5179-5C0A-44DE-9775-A0F6216987FF}.Release|Win32.ActiveCfg = Release|Win32
 		{B22C5179-5C0A-44DE-9775-A0F6216987FF}.Release|Win32.Build.0 = Release|Win32
+		{E4212545-0D32-4AB8-84FC-01F5DF3FF394}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E4212545-0D32-4AB8-84FC-01F5DF3FF394}.Debug|Win32.Build.0 = Debug|Win32
+		{E4212545-0D32-4AB8-84FC-01F5DF3FF394}.Release|Win32.ActiveCfg = Release|Win32
+		{E4212545-0D32-4AB8-84FC-01F5DF3FF394}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
