@@ -99,6 +99,7 @@ namespace MQTT {
 		size_t remainingLength;
 
 	protected:
+		CReceivedPacket(const Type& type) : CPacket(type) {};	// Constructor for class derived from both CPacketToSend and CReceivedPacket
 		CReceivedPacket(const Type& type, const data_t& data)
 			: CPacket(type), m_data(data) {};
 		bool parse();
@@ -201,7 +202,7 @@ namespace MQTT {
 		// Constructor for packet to send
 		CPublishPacket(const std::string& topic, const data_t& payload)
 			: CPacket(Type::PUBLISH)
-			, CPacketToSend(m_type), CReceivedPacket(m_type, payload /*has no meaning*/)
+			, CPacketToSend(m_type), CReceivedPacket(m_type)
 			, topic(topic), payload(payload) {};
 
 		virtual const data_t& data()
