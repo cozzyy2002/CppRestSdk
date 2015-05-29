@@ -1,5 +1,6 @@
 #pragma once
 
+#include "maquette/maquette.h"
 #include "Packet.h"
 #include "EnumValue.h"
 

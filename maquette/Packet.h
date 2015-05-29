@@ -1,9 +1,9 @@
 #pragma once
 
+#include "maquette/maquette.h"
 #include "EnumValue.h"
 
 namespace MQTT {
-	typedef std::vector<byte> data_t;
 
 	class CReceivedPacket;
 
