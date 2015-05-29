@@ -22,9 +22,9 @@ namespace MQTT {
 		virtual void disconnect() = 0;
 		virtual void subscribe(LPCTSTR topic) = 0;
 		virtual void publish(LPCTSTR topic, const data_t& payload) = 0;
+		virtual LRESULT onUserEvent(WPARAM wParam, LPARAM lParam) = 0;
 	};
 
 } // namespace MQTT
 
-MAQUETTE_API MQTT::CMaquette* createMaquette();
-MAQUETTE_API LRESULT maquetteWndProc(HWND hWnd, WPARAM wParam, LPARAM lParam);
+MAQUETTE_API MQTT::CMaquette* createMaquette(MQTT::IMaquetteCallback* callback);
