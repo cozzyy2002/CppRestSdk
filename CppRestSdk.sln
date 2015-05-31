@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RestApplication", "RestApplication\RestApplication.vcxproj", "{DC1B41C1-E8E5-41C2-BCD6-CA785655A131}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RestApplicationGui", "RestApplicationGui\RestApplicationGui.vcxproj", "{B22C5179-5C0A-44DE-9775-A0F6216987FF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E4212545-0D32-4AB8-84FC-01F5DF3FF394} = {E4212545-0D32-4AB8-84FC-01F5DF3FF394}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "maquette", "maquette\maquette.vcxproj", "{E4212545-0D32-4AB8-84FC-01F5DF3FF394}"
 EndProject

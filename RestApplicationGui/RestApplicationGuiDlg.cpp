@@ -11,10 +11,6 @@
 #define new DEBUG_NEW
 #endif
 
-using namespace web::websockets::client;
-using namespace concurrency::streams;
-using namespace utility;
-using namespace utility::conversions;
 using namespace MQTT;
 
 static log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("RestApplicationGuiDlg"));
@@ -124,6 +120,7 @@ BOOL CRestApplicationGuiDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
+	m_maquette.reset(createMaquette(this));
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -177,26 +174,34 @@ HCURSOR CRestApplicationGuiDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+// Implementation of IMaquetteCallback
+BOOL CRestApplicationGuiDlg::postMessage(WPARAM wParam, LPARAM lParam)
+{
+	return PostMessage(WM_USER_EVENT, wParam, lParam);
+}
 
+afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam)
+{
+	return m_maquette->onUserEvent(wParam, lParam);
+}
 
 void CRestApplicationGuiDlg::OnClickedButtonConnect()
 {
 	UpdateData();
-	postEvent(new CConnectEvent((LPCTSTR)m_ServerUrl));
+	m_maquette->connect(m_ServerUrl);
 }
 
 
 void CRestApplicationGuiDlg::OnClickedButtonDisconnect()
 {
-	postEvent(CMqttEvent::Disconnect);
+	m_maquette->disconnect();
 }
 
 
 void CRestApplicationGuiDlg::OnClickedButtonSubscibe()
 {
 	UpdateData();
-	ATL::CT2A topic(m_Topic);
-	postEvent(new CSubscribeEvent((LPCSTR)topic));
+	m_maquette->subscribe(m_Topic);
 }
 
 
@@ -209,11 +214,10 @@ void CRestApplicationGuiDlg::OnClickedButtonUnsubscibe()
 void CRestApplicationGuiDlg::OnClickedButtonPublish()
 {
 	UpdateData();
-	ATL::CT2A topic(m_Topic);
 	ATL::CT2A message(m_Payload);
 	data_t payload;
 	payload.assign((LPCSTR)message, &((LPCSTR)message)[m_Payload.GetLength()]);
-	postEvent(new CPublishEvent((LPCSTR)topic, payload));
+	m_maquette->publish(m_Topic, payload);
 }
 
 void CRestApplicationGuiDlg::setConnectStatus()
@@ -267,12 +271,13 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserSetText(WPARAM wParam, LPARAM lPar
 
 bool CRestApplicationGuiDlg::canClose()
 {
-	if(m_mqttState == CMqttState::Initial) {
-		return true;
-	} else {
-		AfxMessageBox(U("Connection is not closed."), MB_OK + MB_ICONEXCLAMATION);
-		return false;
-	}
+	return true;
+	//if(m_mqttState == CMqttState::Initial) {
+	//	return true;
+	//} else {
+	//	AfxMessageBox(U("Connection is not closed."), MB_OK + MB_ICONEXCLAMATION);
+	//	return false;
+	//}
 };
 
 void CRestApplicationGuiDlg::OnClose()

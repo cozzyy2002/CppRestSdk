@@ -4,20 +4,26 @@
 
 #pragma once
 #include "afxwin.h"
+#include "maquette/maquette.h"
 
 // CRestApplicationGuiDlg dialog
-class CRestApplicationGuiDlg : public CDialogEx
+class CRestApplicationGuiDlg : public CDialogEx, public MQTT::IMaquetteCallback
 {
 protected:
+	std::shared_ptr<MQTT::CMaquette> m_maquette;
 	bool canClose();
 	void setConnectStatus();
 	void log(LPCTSTR format, ...);
 	CString m_LogText;
+
 	enum {
 		WM_USER_ = WM_USER,
 		WM_USER_EVENT,
 		WM_USER_SET_TEXT,
 	};
+
+	// Implementation of IMaquetteCallback
+	virtual BOOL postMessage(WPARAM wParam, LPARAM lParam);
 
 	enum ConnectStatus {
 		ConnectStatusIdle,
