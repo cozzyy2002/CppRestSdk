@@ -192,6 +192,7 @@ CMqttState CMaquetteImpl::handleConnectedSocket(CMqttEvent* pEvent)
 CMqttState CMaquetteImpl::handleClosedSocket(CMqttEvent* pEvent)
 {
 	m_client->close();
+	m_callback->onConnectionClosed();
 	return CMqttState::Initial;
 }
 
@@ -201,10 +202,12 @@ CMqttState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
 
 	if(packet->isAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT CONNECT accepted.");
+		m_callback->onConnAck(true);
 		return CMqttState::Connected;
 	} else {
 		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode.toString());
 		m_client->close();
+		m_callback->onConnAck(false);
 		return CMqttState::Initial;
 	}
 }
@@ -223,8 +226,10 @@ CMqttState CMaquetteImpl::handleSubAck(CMqttEvent* pEvent)
 
 	if(packet->isAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT SUBSCRIBE accepted.");
+		m_callback->onSubAck(true);
 	} else {
 		LOG4CPLUS_ERROR(logger, "MQTT SUBSCRIBE rejected");
+		m_callback->onSubAck(false);
 	}
 	return m_state;
 }
@@ -245,6 +250,7 @@ CMqttState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 	text.assign((LPCSTR)packet->payload.data(), packet->payload.size());
 	LOG4CPLUS_INFO(logger, "MQTT PUBLISH topic='" << packet->topic.c_str() << "', payload='" << text.c_str() << "'");
 
+	m_callback->onPublished(to_utf16string(packet->topic).c_str(), packet->payload);
 	return m_state;
 }
 

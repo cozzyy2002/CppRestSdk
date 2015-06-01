@@ -180,6 +180,26 @@ BOOL CRestApplicationGuiDlg::postMessage(WPARAM wParam, LPARAM lParam)
 	return PostMessage(WM_USER_EVENT, wParam, lParam);
 }
 
+void CRestApplicationGuiDlg::onConnAck(bool accepted)
+{
+	LOG4CPLUS_INFO(logger, __FUNCTIONW__ U(" ") << (accepted ? U("Accepted") : U("Rejected")));
+};
+
+void CRestApplicationGuiDlg::onConnectionClosed()
+{
+	LOG4CPLUS_INFO(logger, __FUNCTIONW__);
+};
+
+void CRestApplicationGuiDlg::onSubAck(bool accepted)
+{
+	LOG4CPLUS_INFO(logger, __FUNCTIONW__ U(" ") << (accepted ? U("Accepted") : U("Rejected")));
+};
+
+void CRestApplicationGuiDlg::onPublished(LPCTSTR topic, const data_t& payload)
+{
+	LOG4CPLUS_INFO(logger, __FUNCTIONW__ U(" Topic=") << topic << U(",") << payload.size() << U(" byte"));
+};
+
 afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam)
 {
 	return m_maquette->onUserEvent(wParam, lParam);

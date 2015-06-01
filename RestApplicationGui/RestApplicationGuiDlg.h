@@ -25,6 +25,11 @@ protected:
 	// Implementation of IMaquetteCallback
 	virtual BOOL postMessage(WPARAM wParam, LPARAM lParam);
 
+	virtual void onConnAck(bool accepted);
+	virtual void onConnectionClosed();
+	virtual void onSubAck(bool accepted);
+	virtual void onPublished(LPCTSTR topic, const MQTT::data_t& payload);
+
 	enum ConnectStatus {
 		ConnectStatusIdle,
 		ConnectStatusClosed,

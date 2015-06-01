@@ -12,6 +12,11 @@ namespace MQTT {
 	class IMaquetteCallback {
 	public:
 		virtual BOOL postMessage(WPARAM wParam, LPARAM lParam) = 0;
+
+		virtual void onConnAck(bool accepted) {};
+		virtual void onConnectionClosed() {};
+		virtual void onSubAck(bool accepted) {};
+		virtual void onPublished(LPCTSTR topic, const data_t& payload) {};
 	};
 
 	class CMaquette {
