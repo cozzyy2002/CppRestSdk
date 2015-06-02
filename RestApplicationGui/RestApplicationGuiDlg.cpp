@@ -183,11 +183,13 @@ BOOL CRestApplicationGuiDlg::postMessage(WPARAM wParam, LPARAM lParam)
 void CRestApplicationGuiDlg::onConnAck(bool accepted)
 {
 	LOG4CPLUS_INFO(logger, __FUNCTIONW__ U(" ") << (accepted ? U("Accepted") : U("Rejected")));
+	setConnectStatus(ConnectStatusConnected);
 };
 
 void CRestApplicationGuiDlg::onConnectionClosed()
 {
 	LOG4CPLUS_INFO(logger, __FUNCTIONW__);
+	setConnectStatus(ConnectStatusClosed);
 };
 
 void CRestApplicationGuiDlg::onSubAck(bool accepted)
@@ -209,12 +211,14 @@ void CRestApplicationGuiDlg::OnClickedButtonConnect()
 {
 	UpdateData();
 	m_maquette->connect(m_ServerUrl);
+	setConnectStatus(ConnectStatusConnecting);
 }
 
 
 void CRestApplicationGuiDlg::OnClickedButtonDisconnect()
 {
 	m_maquette->disconnect();
+	setConnectStatus(ConnectStatusClosing);
 }
 
 
@@ -238,6 +242,12 @@ void CRestApplicationGuiDlg::OnClickedButtonPublish()
 	data_t payload;
 	payload.assign((LPCSTR)message, &((LPCSTR)message)[m_Payload.GetLength()]);
 	m_maquette->publish(m_Topic, payload);
+}
+
+void CRestApplicationGuiDlg::setConnectStatus(ConnectStatus status)
+{
+	m_ConnectStatus = status;
+	setConnectStatus();
 }
 
 void CRestApplicationGuiDlg::setConnectStatus()

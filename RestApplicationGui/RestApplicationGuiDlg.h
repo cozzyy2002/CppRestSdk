@@ -10,8 +10,17 @@
 class CRestApplicationGuiDlg : public CDialogEx, public MQTT::IMaquetteCallback
 {
 protected:
+	typedef enum _ConnectStatus {
+		ConnectStatusIdle,
+		ConnectStatusClosed,
+		ConnectStatusConnecting,
+		ConnectStatusConnected,
+		ConnectStatusClosing,
+	} ConnectStatus;
+
 	std::shared_ptr<MQTT::CMaquette> m_maquette;
 	bool canClose();
+	void setConnectStatus(ConnectStatus status);
 	void setConnectStatus();
 	void log(LPCTSTR format, ...);
 	CString m_LogText;
@@ -30,13 +39,6 @@ protected:
 	virtual void onSubAck(bool accepted);
 	virtual void onPublished(LPCTSTR topic, const MQTT::data_t& payload);
 
-	enum ConnectStatus {
-		ConnectStatusIdle,
-		ConnectStatusClosed,
-		ConnectStatusConnecting,
-		ConnectStatusConnected,
-		ConnectStatusClosing,
-	};
 	ConnectStatus m_ConnectStatus;
 
 
