@@ -19,11 +19,9 @@ std::string CUtils::dump(const data_t& data)
 		char pos[9];			// byte position(includes terminating null)
 		char hex[width][3];		// hex representation(includes terminating null)
 		char space;
-		char c[width];			// charactor representation or '.' if control charactor
+		char c[width];			// charactor representation or '.' if unprintable charactor
 		char eol;
 	} format_t;
-
-	static const char HEX[] = "0123456789abcdef";
 
 	size_t height = data.size() / width + ((data.size ()% width) ? 1 : 0);
 	std::string ret(height * sizeof(format_t), ' ');
