@@ -99,6 +99,7 @@
     <ClInclude Include="MaquetteImpl.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="public\include\maquette\maquette.h" />
+    <ClInclude Include="public\include\maquette\utils.h" />
     <ClInclude Include="States.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -120,6 +121,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -6,6 +6,7 @@
 #include "RestApplicationGui.h"
 #include "RestApplicationGuiDlg.h"
 #include "afxdialogex.h"
+#include "maquette/utils.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -232,6 +233,10 @@ void CRestApplicationGuiDlg::OnClickedButtonSubscibe()
 void CRestApplicationGuiDlg::OnClickedButtonUnsubscibe()
 {
 	// TODO: Add your control notification handler code here
+	UpdateData();
+	data_t data;
+	data.assign((byte*)(LPCTSTR)m_Topic, (byte*)&((LPCTSTR)m_Topic)[m_Topic.GetLength()]);
+	LOG4CPLUS_INFO(logger, "dump(data) length=" << data.size() << "\n" << CUtils::dump(data).c_str());
 }
 
 

@@ -246,9 +246,10 @@ CMqttState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 {
 	CPublishPacket* packet = getReceivedPacket<CPublishPacket>(pEvent);
 
-	std::string text;
-	text.assign((LPCSTR)packet->payload.data(), packet->payload.size());
-	LOG4CPLUS_INFO(logger, "MQTT PUBLISH topic='" << packet->topic.c_str() << "', payload='" << text.c_str() << "'");
+	LOG4CPLUS_INFO(logger, "MQTT PUBLISH topic='"
+							<< packet->topic.c_str() << "', payload length="
+							<< packet->payload.size() << "\n"
+							<< dump(packet->payload).c_str());
 
 	m_callback->onPublished(to_utf16string(packet->topic).c_str(), packet->payload);
 	return m_state;

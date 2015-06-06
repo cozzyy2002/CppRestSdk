@@ -1,10 +1,11 @@
 #pragma once
 #include "maquette/maquette.h"
+#include "maquette/utils.h"
 #include "States.h"
 
 namespace MQTT {
 
-	class CMaquetteImpl : public CMaquette {
+	class CMaquetteImpl : public CMaquette, CUtils {
 	public:
 		CMaquetteImpl(IMaquetteCallback* callback);
 		virtual ~CMaquetteImpl();
