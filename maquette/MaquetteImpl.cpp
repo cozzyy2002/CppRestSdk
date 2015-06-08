@@ -146,7 +146,7 @@ CMqttState CMaquetteImpl::handleConnect(CMqttEvent* pEvent)
 	LOG4CPLUS_INFO(logger, U("Connecting: '") << serverUrl.c_str() << U("'"));
 
 	websocket_client_config config;
-	config.add_subprotocol(U("mqtt"));
+	config.add_subprotocol(U("mqttv3.1"));
 	m_client.reset(new websocket_callback_client(config));
 	m_client->set_message_handler(std::bind(&CMaquetteImpl::receive, this, std::placeholders::_1));
 	m_client->set_close_handler([this](websocket_close_status status, const string_t& reason, const std::error_code& error) {

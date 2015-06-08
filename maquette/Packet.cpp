@@ -141,7 +141,7 @@ bool CReceivedPacket::parse()
 		}
 	} while((encodedByte & 128) != 0);
 	remainingLength = value;
-	if(remainingLength + 2 != m_data.size()) {
+	if(remainingLength + pos != m_data.size()) {
 		LOG4CPLUS_ERROR(logger, "Wrong Remaining Length. " << remainingLength << ", packet size=" << m_data.size());
 		return false;
 	}
