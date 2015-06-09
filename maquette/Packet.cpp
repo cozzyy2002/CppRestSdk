@@ -20,23 +20,23 @@ static CReceivedPacket* NOT_IMPLEMENTED(const data_t& data)
 }
 
 const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
-//	flagBit	sendToServer	receiveFromServer	name				createPacket
-	0,		false,			false,				"Reserved(0)",		CAN_NOT_CREATE,
-	0,		true,			false,				"CONNECT",			CAN_NOT_CREATE,
-	0,		false,			true,				"CONNACK",			[](const data_t& data) { return new CConnAckPacket(data); },
-	0,		true,			true,				"PUBLISH",			[](const data_t& data) { return new CPublishPacket(data); },
-	0,		true,			true,				"PUBACK",			NOT_IMPLEMENTED,
-	0,		true,			true,				"PUBREC",			NOT_IMPLEMENTED,
-	2,		true,			true,				"PUBREL",			NOT_IMPLEMENTED,
-	0,		true,			true,				"PUBCOMP",			NOT_IMPLEMENTED,
-	2,		true,			false,				"SUBSCRIBE",		CAN_NOT_CREATE,
-	0,		false,			true,				"SUBACK",			[](const data_t& data) { return new CSubAckPacket(data); },
-	2,		true,			false,				"UNSUBSCRIBE",		CAN_NOT_CREATE,
-	0,		false,			true,				"UNSUBACK",			NOT_IMPLEMENTED,
-	0,		true,			false,				"PINGREQ",			CAN_NOT_CREATE,
-	0,		false,			true,				"PINGRESP",			NOT_IMPLEMENTED,
-	0,		true,			false,				"DISCONNECT",		CAN_NOT_CREATE,
-	0,		false,			false,				"Reserved(15)",		CAN_NOT_CREATE,
+//	flagBit	sendToServer	name				createPacket
+	0,		false,			"Reserved(0)",		CAN_NOT_CREATE,
+	0,		true,			"CONNECT",			CAN_NOT_CREATE,
+	0,		false,			"CONNACK",			[](const data_t& data) { return new CConnAckPacket(data); },
+	0,		true,			"PUBLISH",			[](const data_t& data) { return new CPublishPacket(data); },
+	0,		true,			"PUBACK",			NOT_IMPLEMENTED,
+	0,		true,			"PUBREC",			NOT_IMPLEMENTED,
+	2,		true,			"PUBREL",			NOT_IMPLEMENTED,
+	0,		true,			"PUBCOMP",			NOT_IMPLEMENTED,
+	2,		true,			"SUBSCRIBE",		CAN_NOT_CREATE,
+	0,		false,			"SUBACK",			[](const data_t& data) { return new CSubAckPacket(data); },
+	2,		true,			"UNSUBSCRIBE",		CAN_NOT_CREATE,
+	0,		false,			"UNSUBACK",			NOT_IMPLEMENTED,
+	0,		true,			"PINGREQ",			CAN_NOT_CREATE,
+	0,		false,			"PINGRESP",			NOT_IMPLEMENTED,
+	0,		true,			"DISCONNECT",		CAN_NOT_CREATE,
+	0,		false,			"Reserved(15)",		CAN_NOT_CREATE,
 };
 
 /*static*/ uint16_t CPacketToSend::m_packetIdentifier = 0;
@@ -73,24 +73,26 @@ void CPacketToSend::add(uint32_t num, size_t size /*= sizeof(uint32_t)*/)
 const data_t& CPacketToSend::data()
 {
 	// Encode Remaining Length
-	// http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
+	// See http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
 	size_t X = m_remainings.size();
 	byte remainingLength[4];
-	int i = 0;			// Index of remainingLength array
+	int pos = 0;			// Position of remainingLength array
 	do {
-		byte& encodedByte = remainingLength[i++];
+		byte& encodedByte = remainingLength[pos++];
 		encodedByte = X % 128;
 		X = X / 128;
 		// if there are more data to encode, set the top bit of this byte
 		if(X > 0) {
 			encodedByte = encodedByte | 128;
 		}
-	} while((X > 0) && (i < ARRAYSIZE(remainingLength)));
+	} while((X > 0) && (pos < ARRAYSIZE(remainingLength)));
+	_ASSERTE(X == 0 /* Remaining Length has been fully encoded */);
+	// Now pos equals to the size of Remaining Length
 
 	// Build MQTT control packet
-	m_data.reserve(1 + i + m_remainings.size());
+	m_data.reserve(1 + pos + m_remainings.size());
 	m_data.push_back(m_type.encode());												// Pcket type and flags
-	m_data.insert(m_data.end(), remainingLength, &remainingLength[i]);				// Remaining Length
+	m_data.insert(m_data.end(), remainingLength, &remainingLength[pos]);			// Remaining Length
 	if(!m_remainings.empty()) {
 		m_data.insert(m_data.end(), m_remainings.begin(), m_remainings.end());		// Variable header and Payload, if any
 	}
@@ -130,7 +132,7 @@ bool CReceivedPacket::parse()
 	size_t multiplier = 1;
 	size_t value = 0;
 	byte encodedByte;
-	size_t pos = 1;		// MSB position of Remaining Length in m_data
+	size_t pos = 1;		// Position of Remaining Length in m_data
 	do {
 		encodedByte = m_data[pos++];	// 'next byte from stream'
 		value += (encodedByte & 127) * multiplier;
@@ -146,7 +148,7 @@ bool CReceivedPacket::parse()
 		return false;
 	}
 
-	return parseInternal(pos);
+	return parse(pos);
 }
 
 const LPCSTR CConnAckPacket::CReturnCode::m_valueNames[Value::_Count] = {

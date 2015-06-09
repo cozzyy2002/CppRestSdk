@@ -36,7 +36,6 @@ namespace MQTT {
 			typedef struct _Property {
 				byte flagBit;				// Flags specific to each MQTT Control Packet type
 				bool sendToServer;			// true if Packet with this type is to send to server
-				bool receiveFromServer;		// true if Packet with this type is to receive from server
 				LPCSTR name;				// name string
 				std::function<CReceivedPacket* (const data_t&)> createPacket;
 			} Property;
@@ -105,7 +104,7 @@ namespace MQTT {
 		bool parse();
 
 		// pos = top position of remainings(Variavle header)
-		virtual bool parseInternal(size_t pos) { return true; };
+		virtual bool parse(size_t pos) { return true; };
 		uint16_t makeWord(size_t pos) const { return MAKEWORD(m_data[pos + 1], m_data[pos]); };
 
 		const data_t m_data;
@@ -158,7 +157,7 @@ namespace MQTT {
 		bool isAccepted;
 
 	protected:
-		virtual bool parseInternal(size_t pos) {
+		virtual bool parse(size_t pos) {
 			returnCode = m_data[pos];
 			isAccepted = (returnCode == CReturnCode::ConnectionAccepted);
 			return true;
@@ -188,7 +187,7 @@ namespace MQTT {
 		byte qos;
 		bool isAccepted;
 
-		virtual bool parseInternal(size_t pos) {
+		virtual bool parse(size_t pos) {
 			packetIdentifire = makeWord(pos); pos += 2;
 			const byte& returnCode = m_data[pos];
 			qos = returnCode & 0x03;
@@ -217,7 +216,7 @@ namespace MQTT {
 		CPublishPacket(const data_t& data)
 			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, data) {};
 
-		virtual bool parseInternal(size_t pos) {
+		virtual bool parse(size_t pos) {
 			size_t size = makeWord(pos); pos += 2;		// Size of Topic string
 			topic.assign((LPCSTR)&m_data[pos], size); pos += size;
 			// if(0 < QoS) paketIdentifier = WORD(m_data[pos]); pos += 2;

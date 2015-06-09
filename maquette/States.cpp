@@ -25,3 +25,25 @@ const LPCSTR CMqttEvent::m_valueNames[Value::_Count] = {
 	_TO_STRING(Published),
 	_TO_STRING(PingTimer),
 };
+
+CReceivedPacketEvent::CReceivedPacketEvent(MQTT::CReceivedPacket* packet) : m_packet(packet)
+{
+	switch(packet->type()) {
+	case MQTT::CPacket::Type::CONNACK:
+		m_value = ConnAck;
+		break;
+	case MQTT::CPacket::Type::SUBACK:
+		m_value = SubAck;
+		break;
+	case MQTT::CPacket::Type::PUBLISH:
+		m_value = Published;
+		break;
+	case MQTT::CPacket::Type::PINGRESP:
+		// No associated event.
+		break;
+	default:
+		LOG4CPLUS_FATAL(logger, "No associated event. Packet type=" << packet->type().toString());
+		_ASSERTE(FALSE /* No associated event */);
+		break;
+	}
+}

@@ -80,25 +80,7 @@ namespace MQTT {
 
 	class CReceivedPacketEvent : public CMqttEvent {
 	public:
-		CReceivedPacketEvent(MQTT::CReceivedPacket* packet) : m_packet(packet)
-		{
-			switch(packet->type()) {
-			case MQTT::CPacket::Type::CONNACK:
-				m_value = ConnAck;
-				break;
-			case MQTT::CPacket::Type::SUBACK:
-				m_value = SubAck;
-				break;
-			case MQTT::CPacket::Type::PUBLISH:
-				m_value = Published;
-				break;
-			case MQTT::CPacket::Type::PINGRESP:
-				// No associated event.
-				break;
-			default:
-				break;
-			}
-		};
+		CReceivedPacketEvent(MQTT::CReceivedPacket* packet);
 
 		virtual ~CReceivedPacketEvent()
 		{
