@@ -72,22 +72,8 @@ void CPacketToSend::add(uint32_t num, size_t size /*= sizeof(uint32_t)*/)
 
 const data_t& CPacketToSend::data()
 {
-	// Encode Remaining Length
-	// See http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
-	size_t X = m_remainings.size();
 	byte remainingLength[4];
-	int pos = 0;			// Position of remainingLength array
-	do {
-		byte& encodedByte = remainingLength[pos++];
-		encodedByte = X % 128;
-		X = X / 128;
-		// if there are more data to encode, set the top bit of this byte
-		if(X > 0) {
-			encodedByte = encodedByte | 128;
-		}
-	} while((X > 0) && (pos < ARRAYSIZE(remainingLength)));
-	_ASSERTE(X == 0 /* Remaining Length has been fully encoded */);
-	// Now pos equals to the size of Remaining Length
+	size_t pos = encodeRemainingLength(remainingLength, m_remainings.size());
 
 	// Build MQTT control packet
 	m_data.reserve(1 + pos + m_remainings.size());
@@ -97,6 +83,27 @@ const data_t& CPacketToSend::data()
 		m_data.insert(m_data.end(), m_remainings.begin(), m_remainings.end());		// Variable header and Payload, if any
 	}
 	return m_data;
+}
+
+// Encode Remaining Length
+// See http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
+template<size_t size>
+size_t CPacketToSend::encodeRemainingLength(byte(& encoded)[size], size_t lengthToEncode) const
+{
+	size_t X = lengthToEncode;
+	size_t pos = 0;			// Position of remainingLength array
+	do {
+		byte& encodedByte = encoded[pos++];
+		encodedByte = X % 128;
+		X = X / 128;
+		// if there are more data to encode, set the top bit of this byte
+		if(X > 0) {
+			encodedByte = encodedByte | 128;
+		}
+	} while((X > 0) && (pos < ARRAYSIZE(encoded)));
+	_ASSERTE(X == 0 /* Remaining Length has been fully encoded */);
+	// Now pos equals to the size of Remaining Length
+	return pos;
 }
 
 /*static*/ CReceivedPacket* CReceivedPacket::create(const data_t& data)
@@ -127,28 +134,35 @@ const data_t& CPacketToSend::data()
 
 bool CReceivedPacket::parse()
 {
-	// Decode Remaining Length
-	// See http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
-	size_t multiplier = 1;
-	size_t value = 0;
-	byte encodedByte;
 	size_t pos = 1;		// Position of Remaining Length in m_data
-	do {
-		encodedByte = m_data[pos++];	// 'next byte from stream'
-		value += (encodedByte & 127) * multiplier;
-		multiplier *= 128;
-		if((multiplier > 128 * 128 * 128) || (m_data.size() < pos)) {
-			LOG4CPLUS_ERROR(logger, "Malformed Remaing Length. multiplier=" << multiplier << ", pos=" << pos);
-			return false;
-		}
-	} while((encodedByte & 128) != 0);
-	remainingLength = value;
+	remainingLength = decodeRemainingLength(pos);
+	if(pos == 0) return false;
 	if(remainingLength + pos != m_data.size()) {
 		LOG4CPLUS_ERROR(logger, "Wrong Remaining Length. " << remainingLength << ", packet size=" << m_data.size());
 		return false;
 	}
 
 	return parse(pos);
+}
+
+// Decode Remaining Length
+// See http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
+size_t CReceivedPacket::decodeRemainingLength(size_t& pos) const
+{
+	size_t multiplier = 1;
+	size_t value = 0;
+	byte encodedByte;
+	do {
+		encodedByte = m_data[pos++];	// 'next byte from stream'
+		value += (encodedByte & 127) * multiplier;
+		multiplier *= 128;
+		if((multiplier > 128 * 128 * 128) || (m_data.size() < pos)) {
+			LOG4CPLUS_ERROR(logger, "Malformed Remaing Length. multiplier=" << multiplier << ", pos=" << pos);
+			pos = 0;
+			return 0;
+		}
+	} while((encodedByte & 128) != 0);
+	return value;
 }
 
 const LPCSTR CConnAckPacket::CReturnCode::m_valueNames[Value::_Count] = {

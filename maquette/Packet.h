@@ -88,6 +88,9 @@ namespace MQTT {
 		// Variable header and Payload
 		data_t m_remainings;
 		static uint16_t m_packetIdentifier;
+
+		template<size_t size>
+		size_t encodeRemainingLength(byte(& encoded)[size], size_t lengthToEncode) const;
 	};
 
 	class CReceivedPacket : virtual public CPacket {
@@ -105,6 +108,7 @@ namespace MQTT {
 
 		// pos = top position of remainings(Variavle header)
 		virtual bool parse(size_t pos) { return true; };
+		size_t decodeRemainingLength(size_t& pos) const;
 		uint16_t makeWord(size_t pos) const { return MAKEWORD(m_data[pos + 1], m_data[pos]); };
 
 		const data_t m_data;
