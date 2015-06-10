@@ -96,6 +96,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EnumValue.h" />
+    <ClInclude Include="Events.h" />
     <ClInclude Include="MaquetteImpl.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="public\include\maquette\maquette.h" />
@@ -113,6 +114,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Events.cpp" />
     <ClCompile Include="maquette.cpp" />
     <ClCompile Include="MaquetteImpl.cpp" />
     <ClCompile Include="Packet.cpp" />

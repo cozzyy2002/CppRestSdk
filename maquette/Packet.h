@@ -2,6 +2,7 @@
 
 #include "maquette/maquette.h"
 #include "EnumValue.h"
+#include "Events.h"
 
 namespace MQTT {
 
@@ -96,14 +97,15 @@ namespace MQTT {
 	class CReceivedPacket : virtual public CPacket {
 	public:
 		static CReceivedPacket* create(const data_t& data);
+		const CMqttEvent& event() const { return m_event; };
 
 		// Decoded Remaining Length in received data
 		size_t remainingLength;
 
 	protected:
 		CReceivedPacket(const Type& type) : CPacket(type) {};	// Constructor for class derived from both CPacketToSend and CReceivedPacket
-		CReceivedPacket(const Type& type, const data_t& data)
-			: CPacket(type), m_data(data) {};
+		CReceivedPacket(const Type& type, const data_t& data, CMqttEvent::Value event)
+			: CPacket(type), m_data(data), m_event(event) {};
 		bool parse();
 
 		// pos = top position of remainings(Variavle header)
@@ -112,6 +114,7 @@ namespace MQTT {
 		uint16_t makeWord(size_t pos) const { return MAKEWORD(m_data[pos + 1], m_data[pos]); };
 
 		const data_t m_data;
+		const CMqttEvent m_event;
 	};
 
 	class CConnectPacket : public CPacketToSend {
@@ -136,7 +139,7 @@ namespace MQTT {
 
 	class CConnAckPacket : public CReceivedPacket {
 	public:
-		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data) {};
+		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data, CMqttEvent::ConnAck) {};
 
 		class CReturnCode : public CEnumValue {
 		public:
@@ -185,7 +188,7 @@ namespace MQTT {
 
 	class CSubAckPacket : public CReceivedPacket {
 	public:
-		CSubAckPacket(const data_t& data) : CPacket(Type::SUBACK), CReceivedPacket(m_type, data) {};
+		CSubAckPacket(const data_t& data) : CPacket(Type::SUBACK), CReceivedPacket(m_type, data, CMqttEvent::SubAck) {};
 
 		uint16_t packetIdentifire;
 		byte qos;
@@ -218,7 +221,7 @@ namespace MQTT {
 
 		// Constructor for received packet
 		CPublishPacket(const data_t& data)
-			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, data) {};
+			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, data, CMqttEvent::Published) {};
 
 		virtual bool parse(size_t pos) {
 			size_t size = makeWord(pos); pos += 2;		// Size of Topic string

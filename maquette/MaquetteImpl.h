@@ -2,6 +2,8 @@
 #include "maquette/maquette.h"
 #include "maquette/utils.h"
 #include "States.h"
+#include "Events.h"
+#include "Packet.h"
 
 namespace MQTT {
 
