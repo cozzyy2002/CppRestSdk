@@ -16,7 +16,9 @@ const LPCSTR CMqttEvent::m_valueNames[Value::_Count] = {
 	_TO_STRING(SubAck),
 	_TO_STRING(Publish),
 	_TO_STRING(Published),
-	_TO_STRING(PingTimer),
+	_TO_STRING(KeepAlive),
+	_TO_STRING(PingResp),
+	_TO_STRING(PingTimeout),
 };
 
 CReceivedPacketEvent::CReceivedPacketEvent(MQTT::CReceivedPacket* packet) : m_packet(packet)

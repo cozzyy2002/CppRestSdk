@@ -24,9 +24,9 @@ CMaquetteImpl::CMaquetteImpl(IMaquetteCallback* callback)
 CMaquetteImpl::~CMaquetteImpl()
 {}
 
-void CMaquetteImpl::connect(LPCTSTR serverUrl)
+void CMaquetteImpl::connect(LPCTSTR serverUrl, int keepAlive)
 {
-	postEvent(new CConnectEvent(serverUrl));
+	postEvent(new CConnectEvent(serverUrl, keepAlive));
 }
 
 void CMaquetteImpl::disconnect()
@@ -97,7 +97,9 @@ const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(SubAck),				_IGNORE		},		// SubAck
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Publish),				_IGNORE		},		// Publish
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Published),			_IGNORE		},		// Published
-	{	_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL,				_NOT_IMPL	},		// PingTimer
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(KeepAlive),			_IGNORE		},		// KeepAlive
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PingResp
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PingTimeout
 };
 
 void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
@@ -255,8 +257,10 @@ CMqttState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 	return m_state;
 }
 
-CMqttState CMaquetteImpl::handlePingTimer(CMqttEvent* pEvent)
+CMqttState CMaquetteImpl::handleKeepAlive(CMqttEvent* pEvent)
 {
+	CPingReqPacket packet;
+	send(packet);
 	return m_state;
 }
 

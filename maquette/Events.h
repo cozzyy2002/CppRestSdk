@@ -20,7 +20,9 @@ namespace MQTT {
 			SubAck,				// MQTT SUBACK is received
 			Publish,			// Requtest to publish message
 			Published,			// MQTT PUBLISH is received
-			PingTimer,			// Timeout of PING timer
+			KeepAlive,			// Timeout of Keep Alive timer
+			PingResp,			// MQTT PINGRESP is received
+			PingTimeout,		// MQTT PINGRESP is not received before timeout
 			_Count				// Count of enum value for boundary check
 		} Value;
 
@@ -33,11 +35,13 @@ namespace MQTT {
 
 	class CConnectEvent : public CMqttEvent {
 	public:
-		CConnectEvent(LPCTSTR serverUrl)
-			: CMqttEvent(Value::Connect), serverUrl(serverUrl)
+		CConnectEvent(LPCTSTR serverUrl, int keepAlive)
+			: CMqttEvent(Value::Connect)
+			, serverUrl(serverUrl), keepAlive(keepAlive)
 		{};
 
 		const utility::string_t serverUrl;
+		const int keepAlive;
 	};
 
 	class CSubscribeEvent : public CMqttEvent {

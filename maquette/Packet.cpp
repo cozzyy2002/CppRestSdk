@@ -34,7 +34,7 @@ const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 	2,		true,			"UNSUBSCRIBE",		CAN_NOT_CREATE,
 	0,		false,			"UNSUBACK",			NOT_IMPLEMENTED,
 	0,		true,			"PINGREQ",			CAN_NOT_CREATE,
-	0,		false,			"PINGRESP",			NOT_IMPLEMENTED,
+	0,		false,			"PINGRESP",			[](const data_t& data) { return new CPingRespPacket(data); },
 	0,		true,			"DISCONNECT",		CAN_NOT_CREATE,
 	0,		false,			"Reserved(15)",		CAN_NOT_CREATE,
 };

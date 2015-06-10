@@ -234,4 +234,14 @@ namespace MQTT {
 		std::string topic;
 		data_t payload;
 	};
+
+	class CPingReqPacket : public CPacketToSend {
+	public:
+		CPingReqPacket() : CPacket(Type::PINGREQ), CPacketToSend(m_type) {};
+	};
+
+	class CPingRespPacket : public CReceivedPacket {
+	public:
+		CPingRespPacket(const data_t& data) : CPacket(Type::PINGRESP), CReceivedPacket(m_type, data, CMqttEvent::PingResp) {};
+	};
 }

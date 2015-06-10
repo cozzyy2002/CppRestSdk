@@ -12,7 +12,7 @@ namespace MQTT {
 		CMaquetteImpl(IMaquetteCallback* callback);
 		virtual ~CMaquetteImpl();
 
-		virtual void connect(LPCTSTR serverUrl);
+		virtual void connect(LPCTSTR serverUrl, int keepAlive);
 		virtual void disconnect();
 		virtual void subscribe(LPCTSTR topic);
 		virtual void publish(LPCTSTR topic, const data_t& payload);
@@ -41,7 +41,7 @@ namespace MQTT {
 		CMqttState handleSubAck(CMqttEvent* pEvent);
 		CMqttState handlePublish(CMqttEvent* pEvent);
 		CMqttState handlePublished(CMqttEvent* pEvent);
-		CMqttState handlePingTimer(CMqttEvent* pEvent);
+		CMqttState handleKeepAlive(CMqttEvent* pEvent);
 
 		CMqttState handleIgnore(CMqttEvent* pEvent);
 		CMqttState handleFatal(CMqttEvent* pEvent);
