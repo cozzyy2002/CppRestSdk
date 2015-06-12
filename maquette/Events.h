@@ -42,28 +42,52 @@ namespace MQTT {
 		} Params;
 
 		CConnectEvent(const utility::string_t& serverUrl, const utility::string_t& clientId, DWORD keepAlive)
-			: CMqttEvent(Value::Connect), params({serverUrl, clientId, keepAlive}) {};
+			: CMqttEvent(Value::Connect), m_params({serverUrl, clientId, keepAlive}) {};
 
-		const Params params;
+		const Params& params() const { return m_params; };
+
+	protected:
+		const Params m_params;
 	};
 
 	class CSubscribeEvent : public CMqttEvent {
 	public:
-		CSubscribeEvent(const std::string& topic)
-			: CMqttEvent(Value::Subscribe), topic(topic)
-		{};
+		typedef struct _Topic {
+			std::string topic;
+			QOS qos;
+		} Topic;
 
-		const std::string topic;
+		typedef std::vector<Topic> Params;
+
+		CSubscribeEvent(const std::string& topic, QOS qos)
+			: CMqttEvent(Value::Subscribe) {
+			m_params.push_back({topic.c_str(), qos});
+		};
+
+		const Params& params() const { return m_params; };
+
+	protected:
+		Params m_params;
 	};
 
 	class CPublishEvent : public CMqttEvent {
 	public:
-		CPublishEvent(const std::string& topic, const MQTT::data_t& payload)
-			: CMqttEvent(Value::Publish), topic(topic), payload(payload)
-		{};
+		typedef struct _Params {
+			std::string topic;
+			data_t payload;
+			QOS qos;
+			bool retain;
+			// Used by class derived from CReceivedPacket
+			uint16_t packetIdentifier;
+		} Params;
 
-		const std::string topic;
-		const MQTT::data_t payload;
+		CPublishEvent(const std::string& topic, const data_t& payload, QOS qos, bool retain)
+			: CMqttEvent(Value::Publish), m_params({topic, payload, qos, retain}) {};
+
+		const Params& params() const { return m_params; };
+
+	protected:
+		const Params m_params;
 	};
 
 	class CReceivedPacketEvent : public CMqttEvent {

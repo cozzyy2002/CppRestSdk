@@ -34,14 +34,14 @@ void CMaquetteImpl::disconnect()
 	postEvent(CMqttEvent::Disconnect);
 }
 
-void CMaquetteImpl::subscribe(LPCTSTR topic)
+void CMaquetteImpl::subscribe(LPCTSTR topic, QOS qos)
 {
-	postEvent(new CSubscribeEvent(to_utf8string(topic)));
+	postEvent(new CSubscribeEvent(to_utf8string(topic), qos));
 }
 
-void CMaquetteImpl::publish(LPCTSTR topic, const data_t& payload)
+void CMaquetteImpl::publish(LPCTSTR topic, const data_t& payload, QOS qos, bool retain)
 {
-	postEvent(new CPublishEvent(to_utf8string(topic), payload));
+	postEvent(new CPublishEvent(to_utf8string(topic), payload, qos, retain));
 }
 
 void CMaquetteImpl::postEvent(CMqttEvent::Value value)
@@ -148,7 +148,7 @@ void CMaquetteImpl::receive(const web::websockets::client::websocket_incoming_me
 CMqttState CMaquetteImpl::handleConnect(CMqttEvent* pEvent)
 {
 	CConnectEvent* p = getEvent<CConnectEvent>(pEvent);
-	m_connectParams = p->params;
+	m_connectParams = p->params();
 	const string_t& serverUrl = m_connectParams.serverUrl;
 	LOG4CPLUS_INFO(logger, U("Connecting: '") << serverUrl.c_str() << U("'"));
 
@@ -227,7 +227,7 @@ CMqttState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
 CMqttState CMaquetteImpl::handleSubscribe(CMqttEvent* pEvent)
 {
 	CSubscribeEvent* p = getEvent<CSubscribeEvent>(pEvent);
-	CSubscribePacket packet(p->topic);
+	CSubscribePacket packet(p->params());
 	send(packet);
 	return m_state;
 }
@@ -249,7 +249,7 @@ CMqttState CMaquetteImpl::handleSubAck(CMqttEvent* pEvent)
 CMqttState CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
 {
 	CPublishEvent* p = getEvent<CPublishEvent>(pEvent);
-	CPublishPacket packet(p->topic, p->payload);
+	CPublishPacket packet(p->params());
 	send(packet);
 	return m_state;
 }
@@ -257,13 +257,15 @@ CMqttState CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
 CMqttState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 {
 	CPublishPacket* packet = getReceivedPacket<CPublishPacket>(pEvent);
+	const CPublishEvent::Params& params = packet->params();
 
-	LOG4CPLUS_INFO(logger, "MQTT PUBLISH topic='"
-							<< packet->topic.c_str() << "', payload length="
-							<< packet->payload.size() << "\n"
-							<< dump(packet->payload).c_str());
+	LOG4CPLUS_INFO(logger, "MQTT PUBLISH topic='" << params.topic.c_str()
+							<< "', QoS=" << params.qos
+							<< ", retain=" << (params.retain ? "true" : "false")
+							<< ", " << params.payload.size()
+							<< " byte\n" << dump(params.payload).c_str());
 
-	m_callback->onPublished(to_utf16string(packet->topic).c_str(), packet->payload);
+	m_callback->onPublished(to_utf16string(params.topic).c_str(), params.payload);
 	return m_state;
 }
 

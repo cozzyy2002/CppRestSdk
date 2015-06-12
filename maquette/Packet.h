@@ -177,17 +177,20 @@ namespace MQTT {
 
 	class CSubscribePacket : public CPacketToSend {
 	public:
-		CSubscribePacket(const std::string& topic)
-			: CPacket(Type::SUBSCRIBE), CPacketToSend(m_type), m_topic(topic) {};
+		CSubscribePacket(const CSubscribeEvent::Params& params)
+			: CPacket(Type::SUBSCRIBE), CPacketToSend(m_type), m_params(params) {};
 
 		virtual const data_t& data() {
 			add(m_packetIdentifier);
-			add(m_topic);
-			add((byte)0);		// QoS
+			for(CSubscribeEvent::Params::const_iterator i = m_params.begin(); i != m_params.end(); i++) {
+				add(i->topic);
+				add((byte)i->qos);
+			}
 			return CPacketToSend::data();
 		};
 
-		std::string m_topic;
+	protected:
+		CSubscribeEvent::Params m_params;
 	};
 
 	class CSubAckPacket : public CReceivedPacket {
@@ -210,16 +213,16 @@ namespace MQTT {
 	class CPublishPacket : public CPacketToSend, public CReceivedPacket {
 	public:
 		// Constructor for packet to send
-		CPublishPacket(const std::string& topic, const data_t& payload)
+		CPublishPacket(const CPublishEvent::Params& params)
 			: CPacket(Type::PUBLISH)
 			, CPacketToSend(m_type), CReceivedPacket(m_type)
-			, topic(topic), payload(payload) {};
+			, m_params(params) {};
 
 		virtual const data_t& data()
 		{
-			add(topic);
-			// if(0 < QoS) add(m_packetIdentifier);
-			add(payload);
+			add(m_params.topic);
+			if(QOS_0 < m_params.qos) add(m_packetIdentifier);
+			add(m_params.payload);
 			return CPacketToSend::data();
 		};
 
@@ -229,14 +232,21 @@ namespace MQTT {
 
 		virtual bool parse(size_t pos) {
 			size_t size = makeWord(pos); pos += 2;		// Size of Topic string
-			topic.assign((LPCSTR)&m_data[pos], size); pos += size;
-			// if(0 < QoS) paketIdentifier = WORD(m_data[pos]); pos += 2;
-			payload.assign(m_data.begin() + pos, m_data.end());
+			m_params.topic.assign((LPCSTR)&m_data[pos], size); pos += size;
+			m_params.qos = (QOS)((m_data[0] >> 1) & 0x03);
+			m_params.retain = m_data[0] & 0x01;
+			if(QOS_0 < m_params.qos) {
+				m_params.packetIdentifier = makeWord(pos);
+				pos += 2;
+			}
+			m_params.payload.assign(m_data.begin() + pos, m_data.end());
 			return true;
 		};
 
-		std::string topic;
-		data_t payload;
+		const CPublishEvent::Params& params() const { return m_params; };
+
+	protected:
+		CPublishEvent::Params m_params;
 	};
 
 	class CPingReqPacket : public CPacketToSend {

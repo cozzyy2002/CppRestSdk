@@ -7,6 +7,12 @@
 #endif // MAQUETTE_EXPORTS
 
 namespace MQTT {
+	typedef enum _QOS {
+		QOS_0 = 0,
+		QOS_1,
+		QOS_2,
+	} QOS;
+
 	typedef std::vector<byte> data_t;
 
 	class IMaquetteCallback {
@@ -25,8 +31,8 @@ namespace MQTT {
 
 		virtual void connect(LPCTSTR serverUrl, LPCTSTR clientId, DWORD keepAlive = 120) = 0;
 		virtual void disconnect() = 0;
-		virtual void subscribe(LPCTSTR topic) = 0;
-		virtual void publish(LPCTSTR topic, const data_t& payload) = 0;
+		virtual void subscribe(LPCTSTR topic, QOS qos = QOS_0) = 0;
+		virtual void publish(LPCTSTR topic, const data_t& payload, QOS qos = QOS_0, bool retain = false) = 0;
 		virtual LRESULT onUserEvent(WPARAM wParam, LPARAM lParam) = 0;
 	};
 

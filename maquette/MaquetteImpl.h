@@ -15,8 +15,8 @@ namespace MQTT {
 
 		virtual void connect(LPCTSTR serverUrl, LPCTSTR clientId, DWORD keepAlive);
 		virtual void disconnect();
-		virtual void subscribe(LPCTSTR topic);
-		virtual void publish(LPCTSTR topic, const data_t& payload);
+		virtual void subscribe(LPCTSTR topic, QOS qos);
+		virtual void publish(LPCTSTR topic, const data_t& payload, QOS qos, bool retain);
 		virtual LRESULT onUserEvent(WPARAM wParam, LPARAM lParam);
 
 	protected:
