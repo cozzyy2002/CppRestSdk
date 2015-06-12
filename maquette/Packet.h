@@ -51,7 +51,7 @@ namespace MQTT {
 
 			// Encode value to byte to send to server with Flag bits
 			// NOTE: To decode received byte, use Type(byte) constructor
-			inline byte encode(byte flagBit = 0) const { return (m_value << 4) | property.flagBit | flagBit; };
+			inline byte encode(byte flagBit) const { return (m_value << 4) | property.flagBit | flagBit; };
 			inline virtual LPCSTR toString() const { return property.name; };
 			const Property& property;
 
@@ -83,7 +83,7 @@ namespace MQTT {
 		void add(byte num) { add((uint32_t)num, 1); }
 		void add(uint16_t num) { add((uint32_t)num, 2); }
 		void add(uint32_t num, size_t size = sizeof(uint32_t));
-		virtual const data_t& data();
+		virtual const data_t& data() { return data(0); };
 
 	protected:
 		// Variable header and Payload
@@ -92,6 +92,8 @@ namespace MQTT {
 
 		template<size_t size>
 		size_t encodeRemainingLength(byte(& encoded)[size], size_t lengthToEncode) const;
+
+		const data_t& data(byte flagBit);
 	};
 
 	class CReceivedPacket : virtual public CPacket {
@@ -129,7 +131,7 @@ namespace MQTT {
 			add((uint16_t)m_params.keepAlive);	// Keep Alive(second)
 			add(utility::conversions::to_utf8string(m_params.clientId));	// Client Identifier
 
-			return CPacketToSend::data();
+			return CPacketToSend::data(0);
 		};
 
 	protected:
@@ -186,7 +188,7 @@ namespace MQTT {
 				add(i->topic);
 				add((byte)i->qos);
 			}
-			return CPacketToSend::data();
+			return CPacketToSend::data(0);
 		};
 
 	protected:
@@ -216,14 +218,18 @@ namespace MQTT {
 		CPublishPacket(const CPublishEvent::Params& params)
 			: CPacket(Type::PUBLISH)
 			, CPacketToSend(m_type), CReceivedPacket(m_type)
-			, m_params(params) {};
+			, m_params(params), m_dup(false) {};
+
+		void setDup(bool dup = true) { m_dup = dup; };
 
 		virtual const data_t& data()
 		{
 			add(m_params.topic);
 			if(QOS_0 < m_params.qos) add(m_packetIdentifier);
 			add(m_params.payload);
-			return CPacketToSend::data();
+
+			byte flagBit = (m_dup ? 0x08 : 0x00) | (m_params.qos << 1) | (m_params.retain ? 0x01 : 0x00);
+			return CPacketToSend::data(flagBit);
 		};
 
 		// Constructor for received packet
@@ -247,6 +253,7 @@ namespace MQTT {
 
 	protected:
 		CPublishEvent::Params m_params;
+		bool m_dup;
 	};
 
 	class CPingReqPacket : public CPacketToSend {

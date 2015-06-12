@@ -70,14 +70,14 @@ void CPacketToSend::add(uint32_t num, size_t size /*= sizeof(uint32_t)*/)
 	add(&data[maxSize - size], size);
 }
 
-const data_t& CPacketToSend::data()
+const data_t& CPacketToSend::data(byte flagBit)
 {
 	byte remainingLength[4];
 	size_t pos = encodeRemainingLength(remainingLength, m_remainings.size());
 
 	// Build MQTT control packet
 	m_data.reserve(1 + pos + m_remainings.size());
-	m_data.push_back(m_type.encode());												// Pcket type and flags
+	m_data.push_back(m_type.encode(flagBit));										// Pcket type and flags
 	m_data.insert(m_data.end(), remainingLength, &remainingLength[pos]);			// Remaining Length
 	if(!m_remainings.empty()) {
 		m_data.insert(m_data.end(), m_remainings.begin(), m_remainings.end());		// Variable header and Payload, if any
@@ -121,13 +121,9 @@ size_t CPacketToSend::encodeRemainingLength(byte(& encoded)[size], size_t length
 
 	Type type(typeValue);
 	CReceivedPacket* packet = type.property.createPacket(data);
-	bool ok = (packet != NULL);
-	if(ok) {
-		ok = packet->parse();
-		if(!ok) {
-			delete packet;
-			packet = NULL;
-		}
+	if(packet && !packet->parse()) {
+		delete packet;
+		packet = NULL;
 	}
 	return packet;
 }
