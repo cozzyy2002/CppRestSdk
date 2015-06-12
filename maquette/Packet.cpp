@@ -53,21 +53,28 @@ CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(
 void CPacketToSend::add(const void* pData, size_t size)
 {
 	byte* p = (byte*)pData;
-	m_remainings.insert(m_remainings.end(), p, &(p[size]));
+	m_remainings.insert(m_remainings.end(), p, p + size);
 }
 
 void CPacketToSend::add(uint32_t num, size_t size /*= sizeof(uint32_t)*/)
 {
-	static const int maxSize = sizeof(uint32_t);
-	_ASSERTE((0 < size) && (size <= maxSize));
+	static const size_t maxSize = sizeof(num);
 
 	// uint32_t value in network byte order
 	// data[0] stores most significant byte
-	byte data[maxSize] = {
-		HIBYTE(HIWORD(num)), LOBYTE(HIWORD(num)), HIBYTE(LOWORD(num)), LOBYTE(LOWORD(num))
-	};
-
-	add(&data[maxSize - size], size);
+	byte data[maxSize];
+	switch(size) {
+	case 4: data[0] = HIBYTE(HIWORD(num));
+	case 3: data[1] = LOBYTE(HIWORD(num));
+	case 2: data[2] = HIBYTE(LOWORD(num));
+	case 1: data[3] = LOBYTE(LOWORD(num));
+		add(&data[maxSize - size], size);
+		break;
+	default:
+		LOG4CPLUS_FATAL(logger, "Illegal size: " << size);
+		_ASSERTE(FALSE);
+		break;
+	}
 }
 
 const data_t& CPacketToSend::data(byte flagBit)
