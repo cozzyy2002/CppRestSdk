@@ -4,6 +4,7 @@
 #include "States.h"
 #include "Events.h"
 #include "Packet.h"
+#include "Timer.h"
 
 namespace MQTT {
 
@@ -47,6 +48,7 @@ namespace MQTT {
 		CMqttState handleFatal(CMqttEvent* pEvent);
 
 		std::shared_ptr<web::websockets::client::websocket_callback_client> m_client;
+		CTimer m_keepAliveTimer;
 
 		template<class event_t>
 		event_t* getEvent(CMqttEvent* e)

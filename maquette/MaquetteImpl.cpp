@@ -15,7 +15,7 @@ CMaquette* createMaquette(IMaquetteCallback* callback)
 }
 
 CMaquetteImpl::CMaquetteImpl(IMaquetteCallback* callback)
-	: m_callback(callback), m_state(CMqttState::Initial)
+	: m_callback(callback), m_state(CMqttState::Initial), m_keepAliveTimer(true)
 {
 	_ASSERTE(m_callback);
 }
@@ -115,9 +115,13 @@ void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
 	websocket_outgoing_message msg;
 	msg.set_binary_message(buf.create_istream(), size);
 	auto task = m_client->send(msg)
-		.then([](pplx::task<void> task) {
+		.then([this, packet](pplx::task<void> task) {
 			try {
 				task.get();
+
+				if(packet.type() != CPacket::Type::PINGREQ) {
+					m_keepAliveTimer.restart();
+				}
 			} catch(const websocket_exception& e) {
 				LOG4CPLUS_ERROR(logger, "Exception while sending WebSocket message: " << e.what());
 			}
@@ -179,6 +183,8 @@ CMqttState CMaquetteImpl::handleDisconnect(CMqttEvent* pEvent)
 
 CMqttState CMaquetteImpl::handleDisconnectSocket(CMqttEvent* pEvent)
 {
+	m_keepAliveTimer.cancel();
+
 	// Disconnect socket
 	m_client->close();
 	return CMqttState::Disconnecting;
@@ -193,6 +199,7 @@ CMqttState CMaquetteImpl::handleConnectedSocket(CMqttEvent* pEvent)
 
 CMqttState CMaquetteImpl::handleClosedSocket(CMqttEvent* pEvent)
 {
+	m_keepAliveTimer.cancel();
 	m_client->close();
 	m_callback->onConnectionClosed();
 	return CMqttState::Initial;
@@ -205,6 +212,10 @@ CMqttState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
 	if(packet->isAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT CONNECT accepted.");
 		m_callback->onConnAck(true);
+
+		m_keepAliveTimer.start<CMaquetteImpl*>(10000, this, [](CMaquetteImpl* x) {
+			x->postEvent(CMqttEvent::KeepAlive);
+		});
 		return CMqttState::Connected;
 	} else {
 		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode.toString());
