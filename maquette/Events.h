@@ -35,13 +35,16 @@ namespace MQTT {
 
 	class CConnectEvent : public CMqttEvent {
 	public:
-		CConnectEvent(LPCTSTR serverUrl, int keepAlive)
-			: CMqttEvent(Value::Connect)
-			, serverUrl(serverUrl), keepAlive(keepAlive)
-		{};
+		typedef struct _Params {
+			utility::string_t serverUrl;
+			utility::string_t clientId;
+			int keepAlive;
+		} Params;
 
-		const utility::string_t serverUrl;
-		const int keepAlive;
+		CConnectEvent(const utility::string_t& serverUrl, const utility::string_t& clientId, DWORD keepAlive)
+			: CMqttEvent(Value::Connect), params({serverUrl, clientId, keepAlive}) {};
+
+		const Params params;
 	};
 
 	class CSubscribeEvent : public CMqttEvent {

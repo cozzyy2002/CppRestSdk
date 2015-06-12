@@ -23,7 +23,7 @@ namespace MQTT {
 	public:
 		virtual ~CMaquette() {};
 
-		virtual void connect(LPCTSTR serverUrl, int keepAlive = 120) = 0;
+		virtual void connect(LPCTSTR serverUrl, LPCTSTR clientId, DWORD keepAlive = 120) = 0;
 		virtual void disconnect() = 0;
 		virtual void subscribe(LPCTSTR topic) = 0;
 		virtual void publish(LPCTSTR topic, const data_t& payload) = 0;

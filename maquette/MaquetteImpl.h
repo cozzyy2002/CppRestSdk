@@ -13,7 +13,7 @@ namespace MQTT {
 		CMaquetteImpl(IMaquetteCallback* callback);
 		virtual ~CMaquetteImpl();
 
-		virtual void connect(LPCTSTR serverUrl, int keepAlive);
+		virtual void connect(LPCTSTR serverUrl, LPCTSTR clientId, DWORD keepAlive);
 		virtual void disconnect();
 		virtual void subscribe(LPCTSTR topic);
 		virtual void publish(LPCTSTR topic, const data_t& payload);
@@ -32,6 +32,13 @@ namespace MQTT {
 		void postEvent(CMqttEvent::Value value);
 		void postEvent(CMqttEvent* pEvent);
 
+		void startEventTimer(CTimer& timer, DWORD ms, CMqttEvent::Value event)
+		{
+			timer.start<CMqttEvent::Value>(ms, event, [this](CMqttEvent::Value event) {
+				postEvent(event);
+			});
+		};
+
 		CMqttState handleConnect(CMqttEvent* pEvent);
 		CMqttState handleDisconnect(CMqttEvent* pEvent);
 		CMqttState handleDisconnectSocket(CMqttEvent* pEvent);
@@ -49,6 +56,7 @@ namespace MQTT {
 
 		std::shared_ptr<web::websockets::client::websocket_callback_client> m_client;
 		CTimer m_keepAliveTimer;
+		CConnectEvent::Params m_connectParams;
 
 		template<class event_t>
 		event_t* getEvent(CMqttEvent* e)

@@ -119,17 +119,21 @@ namespace MQTT {
 
 	class CConnectPacket : public CPacketToSend {
 	public:
-		CConnectPacket() : CPacket(Type::CONNECT), CPacketToSend(m_type) {};
+		CConnectPacket(const CConnectEvent::Params& params)
+			: CPacket(Type::CONNECT), CPacketToSend(m_type), m_params(params) {};
 
 		virtual const data_t& data() {
-			add("MQTT");			// Protocol Name
-			add((byte)4);			// Protocol Level
-			add((byte)2);			// Connect Flags(Clean Session = 1)
-			add((uint16_t)60);		// Keep Alive(second)
-			add("KYclient");		// Client Identifier
+			add("MQTT");						// Protocol Name
+			add((byte)4);						// Protocol Level
+			add((byte)2);						// Connect Flags(Clean Session = 1)
+			add((uint16_t)m_params.keepAlive);	// Keep Alive(second)
+			add(utility::conversions::to_utf8string(m_params.clientId));	// Client Identifier
 
 			return CPacketToSend::data();
 		};
+
+	protected:
+		const CConnectEvent::Params m_params;
 	};
 
 	class CDisconnectPacket : public CPacketToSend {

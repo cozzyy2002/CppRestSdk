@@ -24,9 +24,9 @@ CMaquetteImpl::CMaquetteImpl(IMaquetteCallback* callback)
 CMaquetteImpl::~CMaquetteImpl()
 {}
 
-void CMaquetteImpl::connect(LPCTSTR serverUrl, int keepAlive)
+void CMaquetteImpl::connect(LPCTSTR serverUrl, LPCTSTR clientId, DWORD keepAlive)
 {
-	postEvent(new CConnectEvent(serverUrl, keepAlive));
+	postEvent(new CConnectEvent(serverUrl, clientId, keepAlive));
 }
 
 void CMaquetteImpl::disconnect()
@@ -148,7 +148,8 @@ void CMaquetteImpl::receive(const web::websockets::client::websocket_incoming_me
 CMqttState CMaquetteImpl::handleConnect(CMqttEvent* pEvent)
 {
 	CConnectEvent* p = getEvent<CConnectEvent>(pEvent);
-	string_t serverUrl = p->serverUrl;
+	m_connectParams = p->params;
+	const string_t& serverUrl = m_connectParams.serverUrl;
 	LOG4CPLUS_INFO(logger, U("Connecting: '") << serverUrl.c_str() << U("'"));
 
 	websocket_client_config config;
@@ -164,8 +165,8 @@ CMqttState CMaquetteImpl::handleConnect(CMqttEvent* pEvent)
 	});
 
 	m_client->connect(serverUrl)
-		.then([this, serverUrl]() {
-			LOG4CPLUS_INFO(logger, U("Connected: '") << serverUrl.c_str() << U("'"));
+		.then([this]() {
+			LOG4CPLUS_INFO(logger, U("Connected: '") << m_connectParams.serverUrl.c_str() << U("'"));
 			postEvent(CMqttEvent::ConnectedSocket);
 		});
 
@@ -192,7 +193,7 @@ CMqttState CMaquetteImpl::handleDisconnectSocket(CMqttEvent* pEvent)
 
 CMqttState CMaquetteImpl::handleConnectedSocket(CMqttEvent* pEvent)
 {
-	CConnectPacket packet;
+	CConnectPacket packet(m_connectParams);
 	send(packet);
 	return CMqttState::ConnectingBroker;
 }
@@ -213,9 +214,7 @@ CMqttState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
 		LOG4CPLUS_INFO(logger, "MQTT CONNECT accepted.");
 		m_callback->onConnAck(true);
 
-		m_keepAliveTimer.start<CMaquetteImpl*>(10000, this, [](CMaquetteImpl* x) {
-			x->postEvent(CMqttEvent::KeepAlive);
-		});
+		startEventTimer(m_keepAliveTimer, m_connectParams.keepAlive * 1000, CMqttEvent::KeepAlive);
 		return CMqttState::Connected;
 	} else {
 		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode.toString());

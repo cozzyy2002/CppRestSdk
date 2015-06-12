@@ -211,7 +211,7 @@ afx_msg LRESULT CRestApplicationGuiDlg::OnUserEvent(WPARAM wParam, LPARAM lParam
 void CRestApplicationGuiDlg::OnClickedButtonConnect()
 {
 	UpdateData();
-	m_maquette->connect(m_ServerUrl);
+	m_maquette->connect(m_ServerUrl, U("KY_client"));
 	setConnectStatus(ConnectStatusConnecting);
 }
 
