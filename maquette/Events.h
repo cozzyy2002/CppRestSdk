@@ -22,7 +22,7 @@ namespace MQTT {
 			Published,			// MQTT PUBLISH is received
 			KeepAlive,			// Timeout of Keep Alive timer
 			PingResp,			// MQTT PINGRESP is received
-			PingTimeout,		// MQTT PINGRESP is not received before timeout
+			PingRespTimeout,	// MQTT PINGRESP is not received before timeout
 			_Count				// Count of enum value for boundary check
 		} Value;
 

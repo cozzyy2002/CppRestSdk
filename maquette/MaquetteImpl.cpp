@@ -98,8 +98,8 @@ const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Publish),				_IGNORE		},		// Publish
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Published),			_IGNORE		},		// Published
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(KeepAlive),			_IGNORE		},		// KeepAlive
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PingResp
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PingTimeout
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingResp),			_IGNORE		},		// PingResp
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingRespTimeout),		_IGNORE		},		// PingRespTimeout
 };
 
 void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
@@ -273,7 +273,24 @@ CMqttState CMaquetteImpl::handleKeepAlive(CMqttEvent* pEvent)
 {
 	CPingReqPacket packet;
 	send(packet);
+	startEventTimer(m_pingRespTimer, m_responseTime_ms, CMqttEvent::PingRespTimeout);
 	return m_state;
+}
+
+CMqttState CMaquetteImpl::handlePingResp(CMqttEvent* pEvent)
+{
+	if(m_pingRespTimer.isActive()) {
+		m_pingRespTimer.cancel();
+	} else {
+		handleIgnore(pEvent);
+	}
+	return m_state;
+}
+
+CMqttState CMaquetteImpl::handlePingRespTimeout(CMqttEvent* pEvent)
+{
+	LOG4CPLUS_ERROR(logger, "PingResp timeout.");
+	return handleDisconnectSocket(pEvent);
 }
 
 CMqttState CMaquetteImpl::handleIgnore(CMqttEvent* pEvent)

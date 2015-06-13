@@ -5,7 +5,7 @@ using namespace MQTT;
 
 static log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("MQTT.CTimer"));
 
-CTimer::CTimer(bool repeat /*= false*/) : m_repeat(repeat)
+CTimer::CTimer(bool repeat /*= false*/) : m_repeat(repeat), m_active(false)
 {
 	m_cancelEvent = ::CreateEvent(NULL, TRUE, FALSE, NULL);
 	m_restartEvent = ::CreateEvent(NULL, TRUE, FALSE, NULL);

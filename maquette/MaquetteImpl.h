@@ -50,12 +50,16 @@ namespace MQTT {
 		CMqttState handlePublish(CMqttEvent* pEvent);
 		CMqttState handlePublished(CMqttEvent* pEvent);
 		CMqttState handleKeepAlive(CMqttEvent* pEvent);
+		CMqttState handlePingResp(CMqttEvent* pEvent);
+		CMqttState handlePingRespTimeout(CMqttEvent* pEvent);
 
 		CMqttState handleIgnore(CMqttEvent* pEvent);
 		CMqttState handleFatal(CMqttEvent* pEvent);
 
 		std::shared_ptr<web::websockets::client::websocket_callback_client> m_client;
 		CTimer m_keepAliveTimer;
+		CTimer m_pingRespTimer;
+		static const DWORD m_responseTime_ms = 10000;
 		CConnectEvent::Params m_connectParams;
 
 		template<class event_t>

@@ -11,9 +11,11 @@ namespace MQTT {
 		void start(DWORD ms, T param, std::function<void (T)> timeoutFunc);
 		void restart();
 		void cancel();
+		bool isActive() const { return m_active; };
 
 	protected:
 		bool m_repeat;
+		bool m_active;
 		HANDLE m_cancelEvent;
 		HANDLE m_restartEvent;
 	};
@@ -21,6 +23,7 @@ namespace MQTT {
 	template<typename T>
 	void CTimer::start(DWORD ms, T param, std::function<void (T)> timeoutFunc)
 	{
+		m_active = true;
 		pplx::task_completion_event<void> tce;
 		pplx::task<void> task(tce);
 		task.then([this, ms, timeoutFunc, param](pplx::task<void> task) {
@@ -49,6 +52,7 @@ namespace MQTT {
 					break;
 				}
 			} while(repeat);
+			m_active = false;
 		});
 		tce.set();
 	}
