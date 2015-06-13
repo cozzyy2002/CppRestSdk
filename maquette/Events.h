@@ -20,6 +20,10 @@ namespace MQTT {
 			SubAck,				// MQTT SUBACK is received
 			Publish,			// Requtest to publish message
 			Published,			// MQTT PUBLISH is received
+			PubAck,				// MQTT PUBACK is received
+			PubRec,				// MQTT PUBRec is received
+			PubRel,				// MQTT PUBREL is received
+			PubComp,			// MQTT PUBCOMP is received
 			KeepAlive,			// Timeout of Keep Alive timer
 			PingResp,			// MQTT PINGRESP is received
 			PingRespTimeout,	// MQTT PINGRESP is not received before timeout

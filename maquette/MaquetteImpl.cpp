@@ -97,6 +97,10 @@ const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(SubAck),				_IGNORE		},		// SubAck
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Publish),				_IGNORE		},		// Publish
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Published),			_IGNORE		},		// Published
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubAck
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubRec
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubRel
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubComp
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(KeepAlive),			_IGNORE		},		// KeepAlive
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingResp),			_IGNORE		},		// PingResp
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingRespTimeout),		_IGNORE		},		// PingRespTimeout

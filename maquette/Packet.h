@@ -119,6 +119,40 @@ namespace MQTT {
 		const CMqttEvent m_event;
 	};
 
+	/**
+	 * Base class for packets used to send and receive,
+	 * and for packets consist of
+	 *   Fixed header,
+	 *   Packet Identifier in Variable Header
+	 *   and no Paylead.
+	 */
+	class CSimplePacket : public CPacketToSend, public CReceivedPacket {
+	public:
+		uint16_t packetIdentifire;
+
+	protected:
+		// Constructor for packet to send
+		CSimplePacket(const Type& type, bool usePacketIdentifier)
+			: CPacket(type), CPacketToSend(m_type), CReceivedPacket(m_type), m_usePacketIdentifier(usePacketIdentifier) {};
+
+		virtual const data_t& data() {
+			if(m_usePacketIdentifier) add(m_packetIdentifier);
+			return CPacketToSend::data(0);
+		};
+
+		// Constructor for received packet
+		CSimplePacket(const Type& type, const data_t& data, CMqttEvent::Value event, bool usePacketIdentifier)
+			: CPacket(type), CPacketToSend(type), CReceivedPacket(m_type, data, event), m_usePacketIdentifier(usePacketIdentifier) {};
+
+		bool parse(size_t pos, bool usePacketIdentifier) {
+			if(m_usePacketIdentifier) {
+				packetIdentifire = makeWord(pos); pos += 2;
+			}
+		};
+
+		bool m_usePacketIdentifier;
+	};
+
 	class CConnectPacket : public CPacketToSend {
 	public:
 		CConnectPacket(const CConnectEvent::Params& params)
@@ -254,6 +288,30 @@ namespace MQTT {
 	protected:
 		CPublishEvent::Params m_params;
 		bool m_dup;
+	};
+
+	class CPubAckPacket : public CSimplePacket {
+	public:
+		CPubAckPacket() : CPacket(Type::PUBACK), CSimplePacket(m_type, true) {};
+		CPubAckPacket(const data_t& data) : CPacket(Type::PUBACK), CSimplePacket(m_type, data, CMqttEvent::PubAck, true) {};
+	};
+
+	class CPubRecPacket : public CSimplePacket {
+	public:
+		CPubRecPacket() : CPacket(Type::PUBREC), CSimplePacket(m_type, true) {};
+		CPubRecPacket(const data_t& data) : CPacket(Type::PUBREC), CSimplePacket(m_type, data, CMqttEvent::PubRec, true) {};
+	};
+
+	class CPubRelPacket : public CSimplePacket {
+	public:
+		CPubRelPacket() : CPacket(Type::PUBREL), CSimplePacket(m_type, true) {};
+		CPubRelPacket(const data_t& data) : CPacket(Type::PUBREL), CSimplePacket(m_type, data, CMqttEvent::PubRel, true) {};
+	};
+
+	class CPubCompPacket : public CSimplePacket {
+	public:
+		CPubCompPacket() : CPacket(Type::PUBCOMP), CSimplePacket(m_type, true) {};
+		CPubCompPacket(const data_t& data) : CPacket(Type::PUBCOMP), CSimplePacket(m_type, data, CMqttEvent::PubComp, true) {};
 	};
 
 	class CPingReqPacket : public CPacketToSend {
