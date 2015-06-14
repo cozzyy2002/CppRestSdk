@@ -111,9 +111,13 @@ namespace MQTT {
 		bool parse();
 
 		// pos = top position of remainings(Variavle header)
-		virtual bool parse(size_t pos) { return true; };
+		virtual bool parse(size_t& pos) { return true; };
 		size_t decodeRemainingLength(size_t& pos) const;
-		uint16_t makeWord(size_t pos) const { return MAKEWORD(m_data[pos + 1], m_data[pos]); };
+		uint16_t makeWord(size_t& pos) const {
+			uint16_t word = MAKEWORD(m_data[pos + 1], m_data[pos]);
+			pos += sizeof(uint16_t);
+			return word;
+		};
 
 		const data_t m_data;
 		const CMqttEvent m_event;
@@ -144,9 +148,9 @@ namespace MQTT {
 		CSimplePacket(const Type& type, const data_t& data, CMqttEvent::Value event, bool usePacketIdentifier)
 			: CPacket(type), CPacketToSend(type), CReceivedPacket(m_type, data, event), m_usePacketIdentifier(usePacketIdentifier) {};
 
-		bool parse(size_t pos, bool usePacketIdentifier) {
+		bool parse(size_t& pos, bool usePacketIdentifier) {
 			if(m_usePacketIdentifier) {
-				packetIdentifire = makeWord(pos); pos += 2;
+				packetIdentifire = makeWord(pos);
 			}
 		};
 
@@ -204,7 +208,7 @@ namespace MQTT {
 		bool isAccepted;
 
 	protected:
-		virtual bool parse(size_t pos) {
+		virtual bool parse(size_t& pos) {
 			returnCode = m_data[pos];
 			isAccepted = (returnCode == CReturnCode::ConnectionAccepted);
 			return true;
@@ -237,8 +241,8 @@ namespace MQTT {
 		byte qos;
 		bool isAccepted;
 
-		virtual bool parse(size_t pos) {
-			packetIdentifire = makeWord(pos); pos += 2;
+		virtual bool parse(size_t& pos) {
+			packetIdentifire = makeWord(pos);
 			const byte& returnCode = m_data[pos];
 			qos = returnCode & 0x03;
 			isAccepted = (returnCode & 0x80) == 0;
@@ -270,14 +274,13 @@ namespace MQTT {
 		CPublishPacket(const data_t& data)
 			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, data, CMqttEvent::Published) {};
 
-		virtual bool parse(size_t pos) {
-			size_t size = makeWord(pos); pos += 2;		// Size of Topic string
-			m_params.topic.assign((LPCSTR)&m_data[pos], size); pos += size;
+		virtual bool parse(size_t& pos) {
 			m_params.qos = (QOS)((m_data[0] >> 1) & 0x03);
 			m_params.retain = m_data[0] & 0x01;
+			size_t size = makeWord(pos);		// Size of Topic string
+			m_params.topic.assign((LPCSTR)&m_data[pos], size); pos += size;
 			if(QOS_0 < m_params.qos) {
 				m_params.packetIdentifier = makeWord(pos);
-				pos += 2;
 			}
 			m_params.payload.assign(m_data.begin() + pos, m_data.end());
 			return true;
