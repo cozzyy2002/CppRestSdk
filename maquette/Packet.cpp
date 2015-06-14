@@ -182,7 +182,11 @@ bool CReceivedPacket::parse()
 		return false;
 	}
 
-	return parse(pos);
+	try {
+		return parse(pos);
+	} catch(const std::exception&) {
+		return false;
+	}
 }
 
 // Decode Remaining Length
@@ -193,6 +197,7 @@ size_t CReceivedPacket::decodeRemainingLength(size_t& pos) const
 	size_t value = 0;
 	byte encodedByte;
 	do {
+		checkLength(pos, sizeof(byte));
 		encodedByte = m_data[pos++];	// 'next byte from stream'
 		value += (encodedByte & 127) * multiplier;
 		multiplier *= 128;
@@ -207,9 +212,18 @@ size_t CReceivedPacket::decodeRemainingLength(size_t& pos) const
 
 uint16_t CReceivedPacket::makeWord(size_t& pos) const
 {
+	checkLength(pos, sizeof(uint16_t));
 	uint16_t word = MAKEWORD(m_data[pos + 1], m_data[pos]);
 	pos += sizeof(uint16_t);
 	return word;
+}
+
+void CReceivedPacket::checkLength(size_t pos, size_t size) const
+{
+	if(m_data.size() < (pos + size - 1)) {
+		LOG4CPLUS_ERROR(logger, "Short packet " << m_data.size() << " < " << (pos + size - 1));
+		throw std::exception("Position exceeds packet length.");
+	}
 }
 
 bool CSimplePacket::parse(size_t& pos, bool usePacketIdentifier)
@@ -241,6 +255,7 @@ bool CPublishPacket::parse(size_t& pos)
 	m_params.qos = (QOS)((m_data[0] >> 1) & 0x03);
 	m_params.retain = m_data[0] & 0x01;
 	size_t size = makeWord(pos);		// Size of Topic string
+	checkLength(pos, size);
 	m_params.topic.assign((LPCSTR)&m_data[pos], size); pos += size;
 	if(QOS_0 < m_params.qos) {
 		m_params.packetIdentifier = makeWord(pos);

@@ -114,6 +114,7 @@ namespace MQTT {
 		virtual bool parse(size_t& pos) { return true; };
 		size_t decodeRemainingLength(size_t& pos) const;
 		uint16_t makeWord(size_t& pos) const;
+		void checkLength(size_t pos, size_t size) const;
 
 		const data_t m_data;
 		const CMqttEvent m_event;
