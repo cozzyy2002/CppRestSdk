@@ -113,6 +113,43 @@ size_t CPacketToSend::encodeRemainingLength(byte(& encoded)[size], size_t length
 	return pos;
 }
 
+const data_t& CSimplePacket::data()
+{
+	if(m_usePacketIdentifier) add(m_packetIdentifier);
+	return CPacketToSend::data(0);
+}
+
+const data_t& CConnectPacket::data()
+{
+	add("MQTT");						// Protocol Name
+	add((byte)4);						// Protocol Level
+	add((byte)2);						// Connect Flags(Clean Session = 1)
+	add((uint16_t)m_params.keepAlive);	// Keep Alive(second)
+	add(utility::conversions::to_utf8string(m_params.clientId));	// Client Identifier
+
+	return CPacketToSend::data(0);
+}
+
+const data_t& CSubscribePacket::data()
+{
+	add(m_packetIdentifier);
+	for(CSubscribeEvent::Params::const_iterator i = m_params.begin(); i != m_params.end(); i++) {
+		add(i->topic);
+		add((byte)i->qos);
+	}
+	return CPacketToSend::data(0);
+}
+
+const data_t& CPublishPacket::data()
+{
+	add(m_params.topic);
+	if(QOS_0 < m_params.qos) add(m_packetIdentifier);
+	add(m_params.payload);
+
+	byte flagBit = (m_dup ? 0x08 : 0x00) | (m_params.qos << 1) | (m_params.retain ? 0x01 : 0x00);
+	return CPacketToSend::data(flagBit);
+}
+
 /*static*/ CReceivedPacket* CReceivedPacket::create(const data_t& data)
 {
 	if(data.size() < 2) {
@@ -166,6 +203,50 @@ size_t CReceivedPacket::decodeRemainingLength(size_t& pos) const
 		}
 	} while((encodedByte & 128) != 0);
 	return value;
+}
+
+uint16_t CReceivedPacket::makeWord(size_t& pos) const
+{
+	uint16_t word = MAKEWORD(m_data[pos + 1], m_data[pos]);
+	pos += sizeof(uint16_t);
+	return word;
+}
+
+bool CSimplePacket::parse(size_t& pos, bool usePacketIdentifier)
+{
+	if(m_usePacketIdentifier) {
+		packetIdentifire = makeWord(pos);
+	}
+	return true;
+}
+
+bool CConnAckPacket::parse(size_t& pos)
+{
+	returnCode = m_data[pos];
+	isAccepted = (returnCode == CReturnCode::ConnectionAccepted);
+	return true;
+}
+
+bool CSubAckPacket::parse(size_t& pos)
+{
+	packetIdentifire = makeWord(pos);
+	const byte& returnCode = m_data[pos];
+	qos = returnCode & 0x03;
+	isAccepted = (returnCode & 0x80) == 0;
+	return true;
+}
+
+bool CPublishPacket::parse(size_t& pos)
+{
+	m_params.qos = (QOS)((m_data[0] >> 1) & 0x03);
+	m_params.retain = m_data[0] & 0x01;
+	size_t size = makeWord(pos);		// Size of Topic string
+	m_params.topic.assign((LPCSTR)&m_data[pos], size); pos += size;
+	if(QOS_0 < m_params.qos) {
+		m_params.packetIdentifier = makeWord(pos);
+	}
+	m_params.payload.assign(m_data.begin() + pos, m_data.end());
+	return true;
 }
 
 const LPCSTR CConnAckPacket::CReturnCode::m_valueNames[Value::_Count] = {

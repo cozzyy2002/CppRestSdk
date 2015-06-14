@@ -113,11 +113,7 @@ namespace MQTT {
 		// pos = top position of remainings(Variavle header)
 		virtual bool parse(size_t& pos) { return true; };
 		size_t decodeRemainingLength(size_t& pos) const;
-		uint16_t makeWord(size_t& pos) const {
-			uint16_t word = MAKEWORD(m_data[pos + 1], m_data[pos]);
-			pos += sizeof(uint16_t);
-			return word;
-		};
+		uint16_t makeWord(size_t& pos) const;
 
 		const data_t m_data;
 		const CMqttEvent m_event;
@@ -139,20 +135,13 @@ namespace MQTT {
 		CSimplePacket(const Type& type, bool usePacketIdentifier)
 			: CPacket(type), CPacketToSend(m_type), CReceivedPacket(m_type), m_usePacketIdentifier(usePacketIdentifier) {};
 
-		virtual const data_t& data() {
-			if(m_usePacketIdentifier) add(m_packetIdentifier);
-			return CPacketToSend::data(0);
-		};
+		virtual const data_t& data();
 
 		// Constructor for received packet
 		CSimplePacket(const Type& type, const data_t& data, CMqttEvent::Value event, bool usePacketIdentifier)
 			: CPacket(type), CPacketToSend(type), CReceivedPacket(m_type, data, event), m_usePacketIdentifier(usePacketIdentifier) {};
 
-		bool parse(size_t& pos, bool usePacketIdentifier) {
-			if(m_usePacketIdentifier) {
-				packetIdentifire = makeWord(pos);
-			}
-		};
+		bool parse(size_t& pos, bool usePacketIdentifier);
 
 		bool m_usePacketIdentifier;
 	};
@@ -162,15 +151,7 @@ namespace MQTT {
 		CConnectPacket(const CConnectEvent::Params& params)
 			: CPacket(Type::CONNECT), CPacketToSend(m_type), m_params(params) {};
 
-		virtual const data_t& data() {
-			add("MQTT");						// Protocol Name
-			add((byte)4);						// Protocol Level
-			add((byte)2);						// Connect Flags(Clean Session = 1)
-			add((uint16_t)m_params.keepAlive);	// Keep Alive(second)
-			add(utility::conversions::to_utf8string(m_params.clientId));	// Client Identifier
-
-			return CPacketToSend::data(0);
-		};
+		virtual const data_t& data();
 
 	protected:
 		const CConnectEvent::Params m_params;
@@ -208,11 +189,7 @@ namespace MQTT {
 		bool isAccepted;
 
 	protected:
-		virtual bool parse(size_t& pos) {
-			returnCode = m_data[pos];
-			isAccepted = (returnCode == CReturnCode::ConnectionAccepted);
-			return true;
-		};
+		virtual bool parse(size_t& pos);
 	};
 
 	class CSubscribePacket : public CPacketToSend {
@@ -220,14 +197,7 @@ namespace MQTT {
 		CSubscribePacket(const CSubscribeEvent::Params& params)
 			: CPacket(Type::SUBSCRIBE), CPacketToSend(m_type), m_params(params) {};
 
-		virtual const data_t& data() {
-			add(m_packetIdentifier);
-			for(CSubscribeEvent::Params::const_iterator i = m_params.begin(); i != m_params.end(); i++) {
-				add(i->topic);
-				add((byte)i->qos);
-			}
-			return CPacketToSend::data(0);
-		};
+		virtual const data_t& data();
 
 	protected:
 		CSubscribeEvent::Params m_params;
@@ -241,13 +211,7 @@ namespace MQTT {
 		byte qos;
 		bool isAccepted;
 
-		virtual bool parse(size_t& pos) {
-			packetIdentifire = makeWord(pos);
-			const byte& returnCode = m_data[pos];
-			qos = returnCode & 0x03;
-			isAccepted = (returnCode & 0x80) == 0;
-			return true;
-		};
+		virtual bool parse(size_t& pos);
 	};
 
 	class CPublishPacket : public CPacketToSend, public CReceivedPacket {
@@ -260,31 +224,13 @@ namespace MQTT {
 
 		void setDup(bool dup = true) { m_dup = dup; };
 
-		virtual const data_t& data()
-		{
-			add(m_params.topic);
-			if(QOS_0 < m_params.qos) add(m_packetIdentifier);
-			add(m_params.payload);
-
-			byte flagBit = (m_dup ? 0x08 : 0x00) | (m_params.qos << 1) | (m_params.retain ? 0x01 : 0x00);
-			return CPacketToSend::data(flagBit);
-		};
+		virtual const data_t& data();
 
 		// Constructor for received packet
 		CPublishPacket(const data_t& data)
 			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, data, CMqttEvent::Published) {};
 
-		virtual bool parse(size_t& pos) {
-			m_params.qos = (QOS)((m_data[0] >> 1) & 0x03);
-			m_params.retain = m_data[0] & 0x01;
-			size_t size = makeWord(pos);		// Size of Topic string
-			m_params.topic.assign((LPCSTR)&m_data[pos], size); pos += size;
-			if(QOS_0 < m_params.qos) {
-				m_params.packetIdentifier = makeWord(pos);
-			}
-			m_params.payload.assign(m_data.begin() + pos, m_data.end());
-			return true;
-		};
+		virtual bool parse(size_t& pos);
 
 		const CPublishEvent::Params& params() const { return m_params; };
 
