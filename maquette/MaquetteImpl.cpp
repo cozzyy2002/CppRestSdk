@@ -34,12 +34,12 @@ void CMaquetteImpl::disconnect()
 	postEvent(CMqttEvent::Disconnect);
 }
 
-void CMaquetteImpl::subscribe(LPCTSTR topic, QOS qos)
+void CMaquetteImpl::subscribe(LPCTSTR topic, MQTT::QOS qos)
 {
 	postEvent(new CSubscribeEvent(to_utf8string(topic), qos));
 }
 
-void CMaquetteImpl::publish(LPCTSTR topic, const data_t& payload, QOS qos, bool retain)
+void CMaquetteImpl::publish(LPCTSTR topic, const data_t& payload, MQTT::QOS qos, bool retain)
 {
 	postEvent(new CPublishEvent(to_utf8string(topic), payload, qos, retain));
 }

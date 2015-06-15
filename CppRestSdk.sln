@@ -12,6 +12,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RestApplicationGui", "RestA
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "maquette", "maquette\maquette.vcxproj", "{E4212545-0D32-4AB8-84FC-01F5DF3FF394}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "maquette_unittest", "maquette_unittest\maquette_unittest.vcxproj", "{079BB9F6-155A-4695-8957-BE9552CC3E92}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -30,6 +32,10 @@ Global
 		{E4212545-0D32-4AB8-84FC-01F5DF3FF394}.Debug|Win32.Build.0 = Debug|Win32
 		{E4212545-0D32-4AB8-84FC-01F5DF3FF394}.Release|Win32.ActiveCfg = Release|Win32
 		{E4212545-0D32-4AB8-84FC-01F5DF3FF394}.Release|Win32.Build.0 = Release|Win32
+		{079BB9F6-155A-4695-8957-BE9552CC3E92}.Debug|Win32.ActiveCfg = Debug|Win32
+		{079BB9F6-155A-4695-8957-BE9552CC3E92}.Debug|Win32.Build.0 = Debug|Win32
+		{079BB9F6-155A-4695-8957-BE9552CC3E92}.Release|Win32.ActiveCfg = Release|Win32
+		{079BB9F6-155A-4695-8957-BE9552CC3E92}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
