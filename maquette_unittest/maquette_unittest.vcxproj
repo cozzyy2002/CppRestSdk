@@ -54,7 +54,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_VARIADIC_MAX=10;MAQUETTE_EXPORTS;WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)maquette;$(SolutionDir)maquette\public\include;$(GTEST_ROOT)\include;$(LOG4CPLUS_ROOT)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir)maquette;$(SolutionDir)maquette\public\include;$(GTEST_ROOT)\include;$(LOG4CPLUS_ROOT)\include</AdditionalIncludeDirectories>
       <AdditionalOptions>/Zm114 %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
@@ -74,7 +74,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_VARIADIC_MAX=10;MAQUETTE_EXPORTS;WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)maquette;$(SolutionDir)maquette\public\include;$(GTEST_ROOT)\include;$(LOG4CPLUS_ROOT)\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir)maquette;$(SolutionDir)maquette\public\include;$(GTEST_ROOT)\include;$(LOG4CPLUS_ROOT)\include</AdditionalIncludeDirectories>
       <AdditionalOptions>/Zm114 %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -102,6 +102,7 @@
     <ClCompile Include="..\maquette\States.cpp" />
     <ClCompile Include="..\maquette\Timer.cpp" />
     <ClCompile Include="..\maquette\utils.cpp" />
+    <ClCompile Include="CPacketTest.cpp" />
     <ClCompile Include="maquette_unittest.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(GTEST_ROOT)\include;$(SolutionDir)maquette;$(SolutionDir)maquette\public\include</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(GTEST_ROOT)\include;$(SolutionDir)maquette;$(SolutionDir)maquette\public\include</AdditionalIncludeDirectories>

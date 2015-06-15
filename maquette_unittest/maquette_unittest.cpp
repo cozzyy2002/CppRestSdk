@@ -6,7 +6,7 @@
 int _tmain(int argc, _TCHAR* argv[])
 {
 	log4cplus::initialize();
-	log4cplus::PropertyConfigurator::doConfigure(_T("log4cplus.properties"));
+	log4cplus::PropertyConfigurator::doConfigure(_T("log4cplus.unittest.properties"));
 
 	::testing::InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
