@@ -14,6 +14,8 @@ public:
 		: CPacket(type), CSimplePacket(type, data, event, usePacketIdentifier) {};
 
 	using CPacketToSend::encodeRemainingLength;
+	using CReceivedPacket::decodeRemainingLength;
+	using CReceivedPacket::m_data;
 };
 
 class PacketTest : public Test {
@@ -22,11 +24,11 @@ public:
 	Testee testee;
 };
 
-struct _EncodedRemainingLengthTestData {
-	size_t length;		// Length to encode
-	size_t pos;			// Expected position returned by encodedRemainingLength()
-	byte encoded[4];	// Expected encoded value
-} EncodedRemainingLengthTestData[] = {
+struct _RemainingLengthTestData {
+	size_t decoded;			// Remaining Length to encode or decoded
+	size_t size;			// Size of Encoded array
+	byte encoded[4];		// Remaining Length encoded or to decode
+} RemainingLengthTestData[] = {
 	{0, 1, {0}},
 	{127, 1, {0x7F}},
 	{128, 2, {0x80, 0x01}},
@@ -37,20 +39,39 @@ struct _EncodedRemainingLengthTestData {
 	{268435455, 4, {0xFF, 0xFF, 0xFF, 0x7F}},
 };
 
-class EncodedRemainingLengthTest
+class EncodeRemainingLengthTest
 	: public PacketTest
 	, public WithParamInterface<size_t> {};
 
-TEST_P(EncodedRemainingLengthTest, normal)
+TEST_P(EncodeRemainingLengthTest, normal)
 {
-	const _EncodedRemainingLengthTestData& data = EncodedRemainingLengthTestData[GetParam()];
+	const _RemainingLengthTestData& data = RemainingLengthTestData[GetParam()];
 
 	byte out[4] = {0};
-	size_t pos = testee.encodeRemainingLength(out, data.length);
-	for(int i = 0; i < ARRAYSIZE(out); i++) {
-		EXPECT_EQ(data.encoded[i], out[i]) << "index=" << i;
-	}
-	EXPECT_EQ(data.pos, pos);
+	size_t pos = testee.encodeRemainingLength(out, data.decoded);
+	data_t expected(data.encoded, data.encoded + ARRAYSIZE(data.encoded));
+	data_t actual(out, out + ARRAYSIZE(out));
+	EXPECT_EQ(expected, actual) << "length to encode=" << data.decoded;
+	EXPECT_EQ(data.size, pos);
 }
 
-INSTANTIATE_TEST_CASE_P(CPacketToSend, EncodedRemainingLengthTest, Range((size_t)0, ARRAYSIZE(EncodedRemainingLengthTestData)));
+INSTANTIATE_TEST_CASE_P(CPacketToSend, EncodeRemainingLengthTest, Range((size_t)0, ARRAYSIZE(RemainingLengthTestData)));
+
+class DecodeRemainingLengthTest
+	: public PacketTest
+	, public WithParamInterface<size_t> {};
+
+TEST_P(DecodeRemainingLengthTest, normal)
+{
+	const _RemainingLengthTestData& data = RemainingLengthTestData[GetParam()];
+
+	const size_t top = 1;	// Top of encoded Remaining Length in m_data
+	size_t pos = top;
+	testee.m_data.resize(top + data.size);
+	testee.m_data.insert(testee.m_data.begin() + top, data.encoded, data.encoded + data.size);
+	size_t decoded = testee.decodeRemainingLength(pos);
+	EXPECT_EQ(data.decoded, decoded);
+	EXPECT_EQ(top + data.size, pos);
+}
+
+INSTANTIATE_TEST_CASE_P(CReceivedPacket, DecodeRemainingLengthTest, Range((size_t)0, ARRAYSIZE(RemainingLengthTestData)));

@@ -198,14 +198,14 @@ size_t CReceivedPacket::decodeRemainingLength(size_t& pos) const
 	byte encodedByte;
 	do {
 		checkLength(pos, sizeof(byte));
-		encodedByte = m_data[pos++];	// 'next byte from stream'
-		value += (encodedByte & 127) * multiplier;
-		multiplier *= 128;
 		if((multiplier > 128 * 128 * 128) || (m_data.size() < pos)) {
 			LOG4CPLUS_ERROR(logger, "Malformed Remaing Length. multiplier=" << multiplier << ", pos=" << pos);
 			pos = 0;
 			return 0;
 		}
+		encodedByte = m_data[pos++];	// 'next byte from stream'
+		value += (encodedByte & 127) * multiplier;
+		multiplier *= 128;
 	} while((encodedByte & 128) != 0);
 	return value;
 }
@@ -221,7 +221,7 @@ uint16_t CReceivedPacket::makeWord(size_t& pos) const
 void CReceivedPacket::checkLength(size_t pos, size_t size) const
 {
 	if(m_data.size() < (pos + size - 1)) {
-		LOG4CPLUS_ERROR(logger, "Short packet " << m_data.size() << " < " << (pos + size - 1));
+		LOG4CPLUS_ERROR(logger, "Short packet: size " << m_data.size() << " < position " << (pos + size - 1));
 		throw std::exception("Position exceeds packet length.");
 	}
 }

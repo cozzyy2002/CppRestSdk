@@ -116,7 +116,10 @@ namespace MQTT {
 		uint16_t makeWord(size_t& pos) const;
 		void checkLength(size_t pos, size_t size) const;
 
-		const data_t m_data;
+		// For unit test, m_data should not be const 
+		// TODO: Remove this member and use CPacket::m_data
+		/*const*/ data_t m_data;
+
 		const CMqttEvent m_event;
 	};
 
