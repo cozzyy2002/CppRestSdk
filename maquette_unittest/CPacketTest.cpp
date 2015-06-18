@@ -18,17 +18,21 @@ public:
 	using CReceivedPacket::m_data;
 };
 
-class PacketTest : public Test {
+class CPacketTest : public Test {
 public:
-	PacketTest() : testee(CPacket::Type::CONNECT, false) {};
+	CPacketTest() : testee(CPacket::Type::CONNECT, false) {};
 	Testee testee;
+
+	const size_t top = 1;	// Top of encoded Remaining Length in m_data
 };
 
 struct _RemainingLengthTestData {
 	size_t decoded;			// Remaining Length to encode or decoded
 	size_t size;			// Size of Encoded array
 	byte encoded[4];		// Remaining Length encoded or to decode
-} RemainingLengthTestData[] = {
+};
+
+static const struct _RemainingLengthTestData RemainingLengthTestData[] = {
 	{0, 1, {0}},
 	{127, 1, {0x7F}},
 	{128, 2, {0x80, 0x01}},
@@ -40,7 +44,7 @@ struct _RemainingLengthTestData {
 };
 
 class EncodeRemainingLengthTest
-	: public PacketTest
+	: public CPacketTest
 	, public WithParamInterface<size_t> {};
 
 TEST_P(EncodeRemainingLengthTest, normal)
@@ -58,14 +62,13 @@ TEST_P(EncodeRemainingLengthTest, normal)
 INSTANTIATE_TEST_CASE_P(CPacketToSend, EncodeRemainingLengthTest, Range((size_t)0, ARRAYSIZE(RemainingLengthTestData)));
 
 class DecodeRemainingLengthTest
-	: public PacketTest
+	: public CPacketTest
 	, public WithParamInterface<size_t> {};
 
 TEST_P(DecodeRemainingLengthTest, normal)
 {
 	const _RemainingLengthTestData& data = RemainingLengthTestData[GetParam()];
 
-	const size_t top = 1;	// Top of encoded Remaining Length in m_data
 	size_t pos = top;
 	testee.m_data.resize(top + data.size);
 	testee.m_data.insert(testee.m_data.begin() + top, data.encoded, data.encoded + data.size);
@@ -75,3 +78,21 @@ TEST_P(DecodeRemainingLengthTest, normal)
 }
 
 INSTANTIATE_TEST_CASE_P(CReceivedPacket, DecodeRemainingLengthTest, Range((size_t)0, ARRAYSIZE(RemainingLengthTestData)));
+
+TEST_F(CPacketTest, decodeRemainingLength_shortPacket)
+{
+	static const byte data[] = {0, 0xFF};
+	testee.m_data.assign(data, data + ARRAYSIZE(data));
+	size_t pos = top, decoded;
+	ASSERT_THROW(decoded = testee.decodeRemainingLength(pos), std::exception);
+}
+
+TEST_F(CPacketTest, decodeRemainingLength_exceedsMax)
+{
+	static const byte data[] = {0, 0xFF, 0xFF, 0xFF, 0x80, 0};
+	testee.m_data.assign(data, data + ARRAYSIZE(data));
+	size_t pos = top, decoded;
+	ASSERT_NO_THROW(decoded = testee.decodeRemainingLength(pos));
+	EXPECT_EQ(0, decoded);
+	EXPECT_EQ(0, pos);
+}

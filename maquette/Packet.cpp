@@ -220,7 +220,7 @@ uint16_t CReceivedPacket::makeWord(size_t& pos) const
 
 void CReceivedPacket::checkLength(size_t pos, size_t size) const
 {
-	if(m_data.size() < (pos + size - 1)) {
+	if(m_data.size() < (pos + size)) {
 		LOG4CPLUS_ERROR(logger, "Short packet: size " << m_data.size() << " < position " << (pos + size - 1));
 		throw std::exception("Position exceeds packet length.");
 	}
