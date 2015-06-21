@@ -112,6 +112,7 @@ void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
 	// And wait for buffer to cmplete copying to prevent data from being deleted.
 	producer_consumer_buffer<byte> buf;
 	const data_t& data = packet.data();
+	LOG4CPLUS_DEBUG(logger, "Sending " << CPacket::Type::toString(data[0]) << ": " << data.size() << " byte\n" << CUtils::dump(data).c_str());
 	size_t size = buf.putn(data.data(), data.size()).get();
 
 	// Send message to the server
@@ -140,7 +141,9 @@ void CMaquetteImpl::receive(const web::websockets::client::websocket_incoming_me
 	data->resize(size);
 	msg.body().streambuf().getn(&data->at(0), size)
 		.then([this, data](size_t size) {
-			LOG4CPLUS_DEBUG(logger, "Received " << size << "bytes");
+			LOG4CPLUS_DEBUG(logger, "Received "
+				<< (data->size() ? CPacket::Type::toString(data->at(0)) : "") << ": "
+				<< data->size() << " byte\n" << CUtils::dump(*data).c_str());
 			CReceivedPacket* packet = CReceivedPacket::create(*data);
 			if(packet) {
 				LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name() << ", Remaining Length=" << packet->remainingLength);
@@ -262,12 +265,6 @@ CMqttState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 {
 	CPublishPacket* packet = getReceivedPacket<CPublishPacket>(pEvent);
 	const CPublishEvent::Params& params = packet->params();
-
-	LOG4CPLUS_INFO(logger, "MQTT PUBLISH topic='" << params.topic.c_str()
-							<< "', QoS=" << params.qos
-							<< ", retain=" << (params.retain ? "true" : "false")
-							<< ", " << params.payload.size()
-							<< " byte\n" << dump(params.payload).c_str());
 
 	m_callback->onPublished(to_utf16string(params.topic).c_str(), params.payload);
 	return m_state;

@@ -53,6 +53,7 @@ namespace MQTT {
 			// NOTE: To decode received byte, use Type(byte) constructor
 			inline byte encode(byte flagBit) const { return (m_value << 4) | property.flagBit | flagBit; };
 			inline virtual LPCSTR toString() const { return property.name; };
+			inline static LPCSTR toString(byte value) { return m_properties[value >> 4].name; }
 			const Property& property;
 
 		protected:

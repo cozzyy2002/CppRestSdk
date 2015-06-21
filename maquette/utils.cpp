@@ -23,21 +23,21 @@ std::string CUtils::dump(const data_t& data)
 		char eol;
 	} format_t;
 
-	size_t height = data.size() / width + ((data.size ()% width) ? 1 : 0);
+	size_t size = data.size();
+	size_t height = size / width + ((size % width) ? 1 : 0);
 	std::string ret(height * sizeof(format_t), ' ');
 
 	format_t* p = (format_t*)&ret[0];
-	size_t pos = 0;
+	const byte* d = data.data();
 	for(size_t line = 0; line < height; line++, p++) {
-		sprintf_s(p->pos, "%0*x", ARRAYSIZE(p->pos) - 1, pos);
+		sprintf_s(p->pos, "%0*x", ARRAYSIZE(p->pos) - 1, d);
 		p->pos[ARRAYSIZE(p->pos) - 1] = ' ';
 		size_t column;
-		for(column = 0; column < width; column++) {
-			if(data.size() <= pos) break;
-			const byte& d = data[pos++];
-			sprintf_s(p->hex[column], "%0*x", ARRAYSIZE(p->hex[0]) - 1, d);
+		for(column = 0; column < width; column++, d++) {
+			if(0 == size--) break;
+			sprintf_s(p->hex[column], "%0*x", ARRAYSIZE(p->hex[0]) - 1, *d);
 			p->hex[column][ARRAYSIZE(p->hex[0]) - 1] = ' ';
-			p->c[column] = (isprint(d) && !iscntrl(d)) ? (char)d : '.';
+			p->c[column] = (isprint(*d) && !iscntrl(*d)) ? (char)*d : '.';
 		}
 		p->c[column] = (line < height - 1) ? '\n' : '\0';	// Add LF except last line
 	}
