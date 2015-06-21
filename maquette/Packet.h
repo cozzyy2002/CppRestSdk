@@ -68,6 +68,7 @@ namespace MQTT {
 
 	protected:
 		CPacket(const Type& type) : m_type(type) {};
+		CPacket(const Type& type, const data_t& data) : m_type(type), m_data(data) {};
 		virtual ~CPacket() {};
 
 		const Type m_type;
@@ -107,8 +108,8 @@ namespace MQTT {
 
 	protected:
 		CReceivedPacket(const Type& type) : CPacket(type) {};	// Constructor for class derived from both CPacketToSend and CReceivedPacket
-		CReceivedPacket(const Type& type, const data_t& data, CMqttEvent::Value event)
-			: CPacket(type), m_data(data), m_event(event) {};
+		CReceivedPacket(const Type& type, CMqttEvent::Value event)
+			: CPacket(type), m_event(event) {};
 		bool parse();
 
 		// pos = top position of remainings(Variavle header)
@@ -116,10 +117,6 @@ namespace MQTT {
 		size_t decodeRemainingLength(size_t& pos) const;
 		uint16_t makeWord(size_t& pos) const;
 		void checkLength(size_t pos, size_t size) const;
-
-		// For unit test, m_data should not be const 
-		// TODO: Remove this member and use CPacket::m_data
-		/*const*/ data_t m_data;
 
 		const CMqttEvent m_event;
 	};
@@ -143,8 +140,8 @@ namespace MQTT {
 		virtual const data_t& data();
 
 		// Constructor for received packet
-		CSimplePacket(const Type& type, const data_t& data, CMqttEvent::Value event, bool usePacketIdentifier)
-			: CPacket(type), CPacketToSend(type), CReceivedPacket(m_type, data, event), m_usePacketIdentifier(usePacketIdentifier) {};
+		CSimplePacket(const Type& type, CMqttEvent::Value event, bool usePacketIdentifier)
+			: CPacket(type), CPacketToSend(type), CReceivedPacket(m_type, event), m_usePacketIdentifier(usePacketIdentifier) {};
 
 		bool parse(size_t& pos, bool usePacketIdentifier);
 
@@ -169,7 +166,7 @@ namespace MQTT {
 
 	class CConnAckPacket : public CReceivedPacket {
 	public:
-		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK), CReceivedPacket(m_type, data, CMqttEvent::ConnAck) {};
+		CConnAckPacket(const data_t& data) : CPacket(Type::CONNACK, data), CReceivedPacket(m_type, CMqttEvent::ConnAck) {};
 
 		class CReturnCode : public CEnumValue {
 		public:
@@ -210,7 +207,7 @@ namespace MQTT {
 
 	class CSubAckPacket : public CReceivedPacket {
 	public:
-		CSubAckPacket(const data_t& data) : CPacket(Type::SUBACK), CReceivedPacket(m_type, data, CMqttEvent::SubAck) {};
+		CSubAckPacket(const data_t& data) : CPacket(Type::SUBACK, data), CReceivedPacket(m_type, CMqttEvent::SubAck) {};
 
 		uint16_t packetIdentifire;
 		byte qos;
@@ -233,7 +230,7 @@ namespace MQTT {
 
 		// Constructor for received packet
 		CPublishPacket(const data_t& data)
-			: CPacket(Type::PUBLISH), CPacketToSend(m_type), CReceivedPacket(m_type, data, CMqttEvent::Published) {};
+			: CPacket(Type::PUBLISH, data), CPacketToSend(m_type), CReceivedPacket(m_type, CMqttEvent::Published) {};
 
 		virtual bool parse(size_t& pos);
 
@@ -247,25 +244,25 @@ namespace MQTT {
 	class CPubAckPacket : public CSimplePacket {
 	public:
 		CPubAckPacket() : CPacket(Type::PUBACK), CSimplePacket(m_type, true) {};
-		CPubAckPacket(const data_t& data) : CPacket(Type::PUBACK), CSimplePacket(m_type, data, CMqttEvent::PubAck, true) {};
+		CPubAckPacket(const data_t& data) : CPacket(Type::PUBACK, data), CSimplePacket(m_type, CMqttEvent::PubAck, true) {};
 	};
 
 	class CPubRecPacket : public CSimplePacket {
 	public:
 		CPubRecPacket() : CPacket(Type::PUBREC), CSimplePacket(m_type, true) {};
-		CPubRecPacket(const data_t& data) : CPacket(Type::PUBREC), CSimplePacket(m_type, data, CMqttEvent::PubRec, true) {};
+		CPubRecPacket(const data_t& data) : CPacket(Type::PUBREC, data), CSimplePacket(m_type, CMqttEvent::PubRec, true) {};
 	};
 
 	class CPubRelPacket : public CSimplePacket {
 	public:
 		CPubRelPacket() : CPacket(Type::PUBREL), CSimplePacket(m_type, true) {};
-		CPubRelPacket(const data_t& data) : CPacket(Type::PUBREL), CSimplePacket(m_type, data, CMqttEvent::PubRel, true) {};
+		CPubRelPacket(const data_t& data) : CPacket(Type::PUBREL), CSimplePacket(m_type, CMqttEvent::PubRel, true) {};
 	};
 
 	class CPubCompPacket : public CSimplePacket {
 	public:
 		CPubCompPacket() : CPacket(Type::PUBCOMP), CSimplePacket(m_type, true) {};
-		CPubCompPacket(const data_t& data) : CPacket(Type::PUBCOMP), CSimplePacket(m_type, data, CMqttEvent::PubComp, true) {};
+		CPubCompPacket(const data_t& data) : CPacket(Type::PUBCOMP, data), CSimplePacket(m_type, CMqttEvent::PubComp, true) {};
 	};
 
 	class CPingReqPacket : public CPacketToSend {
@@ -275,6 +272,6 @@ namespace MQTT {
 
 	class CPingRespPacket : public CReceivedPacket {
 	public:
-		CPingRespPacket(const data_t& data) : CPacket(Type::PINGRESP), CReceivedPacket(m_type, data, CMqttEvent::PingResp) {};
+		CPingRespPacket(const data_t& data) : CPacket(Type::PINGRESP, data), CReceivedPacket(m_type, CMqttEvent::PingResp) {};
 	};
 }
