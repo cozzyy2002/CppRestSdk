@@ -88,22 +88,27 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent::Value::_Count][CMqttState::_Count] =
 {
 	//	Initial					ConnectingSocket		ConnectingBroker		Connected				Disconnecting
-	{	H(Connect),				_IGNORE,				_IGNORE,				_IGNORE,				H(Connect)	},		// Connect
+	{	H(Connect),				_IGNORE,				_IGNORE,				_IGNORE,				_IGNORE		},		// Connect
 	{	_IGNORE,				H(DisconnectSocket),	H(DisconnectSocket),	H(Disconnect),			_IGNORE		},		// Disconnect
 	{	_FATAL,					H(ConnectedSocket),		_FATAL,					_FATAL,					_FATAL		},		// ConnectedSocket
 	{	_IGNORE,				H(ClosedSocket),		H(ClosedSocket),		H(ClosedSocket),		H(ClosedSocket)	},	// ClosedSocket
 	{	_FATAL,					_FATAL,					H(ConnAck),				_FATAL,					_IGNORE		},		// ConnAck
+	{	_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE,				_IGNORE		},		// ConnAckTimeout
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(KeepAlive),			_IGNORE		},		// KeepAlive
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingResp),			_IGNORE		},		// PingResp
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingRespTimeout),		_IGNORE		},		// ConnectionTimeout
+
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Subscribe),			_IGNORE		},		// Subscribe
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(SubAck),				_IGNORE		},		// SubAck
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// Unsubscribe
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// unsubAck
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Publish),				_IGNORE		},		// Publish
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Published),			_IGNORE		},		// Published
 	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubAck
 	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubRec
 	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubRel
 	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubComp
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(KeepAlive),			_IGNORE		},		// KeepAlive
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingResp),			_IGNORE		},		// PingResp
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingRespTimeout),		_IGNORE		},		// PingRespTimeout
+	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// SessionTimeout
 };
 
 void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)

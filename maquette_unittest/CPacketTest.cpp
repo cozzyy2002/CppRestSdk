@@ -11,7 +11,7 @@ public:
 	Testee(const Type& type, bool usePacketIdentifier)
 		: CPacket(type), CSimplePacket(type, usePacketIdentifier) {};
 	Testee(const Type& type, const data_t& data, CMqttEvent::Value event, bool usePacketIdentifier)
-		: CPacket(type), CSimplePacket(type, data, event, usePacketIdentifier) {};
+		: CPacket(type, data), CSimplePacket(type, event, usePacketIdentifier) {};
 
 	using CPacketToSend::encodeRemainingLength;
 	using CReceivedPacket::decodeRemainingLength;
