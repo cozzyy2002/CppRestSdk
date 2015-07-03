@@ -30,6 +30,8 @@ const LPCSTR CMqttEvent::m_valueNames[Value::_Count] = {
 	_TO_STRING(PubRel),
 	_TO_STRING(PubComp),
 	_TO_STRING(SessionTimeout),
+	_TO_STRING(NoMoreEvent),
+	_TO_STRING(PreserveCurrentState),
 };
 
 CReceivedPacketEvent::CReceivedPacketEvent(MQTT::CReceivedPacket* packet)
@@ -39,5 +41,4 @@ CReceivedPacketEvent::CReceivedPacketEvent(MQTT::CReceivedPacket* packet)
 
 CReceivedPacketEvent::~CReceivedPacketEvent()
 {
-	delete m_packet;
 };

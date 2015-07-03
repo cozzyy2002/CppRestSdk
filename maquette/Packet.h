@@ -86,11 +86,13 @@ namespace MQTT {
 		void add(uint16_t num) { add((uint32_t)num, 2); }
 		void add(uint32_t num, size_t size = sizeof(uint32_t));
 		virtual const data_t& data() { return data(0); };
+		uint16_t packetIdentifier() const { return m_packetIdentifier; };
 
 	protected:
 		// Variable header and Payload
 		data_t m_remainings;
-		static uint16_t m_packetIdentifier;
+		uint16_t m_packetIdentifier;
+		static uint16_t g_packetIdentifier;
 
 		template<size_t size>
 		size_t encodeRemainingLength(byte(& encoded)[size], size_t lengthToEncode) const;
@@ -130,7 +132,7 @@ namespace MQTT {
 	 */
 	class CSimplePacket : public CPacketToSend, public CReceivedPacket {
 	public:
-		uint16_t packetIdentifire;
+		uint16_t packetIdentifier;
 
 	protected:
 		// Constructor for packet to send
@@ -209,7 +211,7 @@ namespace MQTT {
 	public:
 		CSubAckPacket(const data_t& data) : CPacket(Type::SUBACK, data), CReceivedPacket(m_type, CMqttEvent::SubAck) {};
 
-		uint16_t packetIdentifire;
+		uint16_t packetIdentifier;
 		byte qos;
 		bool isAccepted;
 

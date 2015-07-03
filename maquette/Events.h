@@ -32,8 +32,14 @@ namespace MQTT {
 			PubRel,						// MQTT PUBREL is received
 			PubComp,					// MQTT PUBCOMP is received
 			SessionTimeout,				// MQTT response is not received before timeout
+
+			// Following events are return value of event handler
+			// that specifies how modify current session state in CMaquetteImpl::m_sessionStates
+			NoMoreEvent,			// Remove current state 
+			PreserveCurrentState,	// Do not modify current state
+
 			_SessionEventCount,
-			_Count = _SessionEventCount	// Count of enum value for boundary check
+			_Count = _SessionEventCount,	// Count of enum value for boundary check
 		} Value;
 
 		// NOTE: Default constructor is called as member of CReceivedPacket
@@ -127,9 +133,17 @@ namespace MQTT {
 		CReceivedPacketEvent(CReceivedPacket* packet);
 		virtual ~CReceivedPacketEvent();
 
-		inline MQTT::CReceivedPacket* packet() const { return m_packet; };
+		inline std::shared_ptr<CReceivedPacket>& packet() { return m_packet; };
 
 	protected:
-		CReceivedPacket* m_packet;
+		std::shared_ptr<CReceivedPacket> m_packet;
+	};
+
+	class CSessionTimeoutEvent : public CMqttEvent {
+	public:
+		CSessionTimeoutEvent(uint16_t packetIdentifire)
+			: CMqttEvent(Value::SessionTimeout), packetIdentifire(packetIdentifire) {};
+
+		const uint16_t packetIdentifire;
 	};
 }

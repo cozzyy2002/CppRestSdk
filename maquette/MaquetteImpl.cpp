@@ -15,7 +15,7 @@ CMaquette* createMaquette(IMaquetteCallback* callback)
 }
 
 CMaquetteImpl::CMaquetteImpl(IMaquetteCallback* callback)
-	: m_callback(callback), m_state(CMqttState::Initial), m_keepAliveTimer(true)
+	: m_callback(callback), m_state(CConnectionState::Initial), m_keepAliveTimer(true)
 {
 	_ASSERTE(m_callback);
 }
@@ -63,7 +63,7 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_state.toString() << ", event=" << pEvent->toString());
 
 	if(!m_state.isValid()) {
-		LOG4CPLUS_FATAL(logger, "CMqttState is out of range: " << (byte)m_state);
+		LOG4CPLUS_FATAL(logger, "CConnectionState is out of range: " << (byte)m_state);
 		return 0;
 	}
 	if(!pEvent->isValid()) {
@@ -71,11 +71,14 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 		return 0;
 	}
 
-	event_handler_t handler = state_event_table[*pEvent][m_state];
-	m_state = (this->*handler)(pEvent);
-	delete pEvent;
+	if(pEvent->isConnectionEvent()) {
+		event_handler_t handler = state_event_table[*pEvent][m_state];
+		m_state = (this->*handler)(pEvent);
+		LOG4CPLUS_TRACE(logger, "OnUserEvent(): new state=" << m_state.toString());
+	} else {
 
-	LOG4CPLUS_TRACE(logger, "OnUserEvent(): new state=" << m_state.toString());
+	}
+	delete pEvent;
 
 	return 0;
 }
@@ -85,7 +88,7 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 #define _FATAL H(Fatal)
 #define _NOT_IMPL _FATAL
 
-const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent::Value::_Count][CMqttState::_Count] =
+const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent::Value::_Count][CConnectionState::_Count] =
 {
 	//	Initial					ConnectingSocket		ConnectingBroker		Connected				Disconnecting
 	{	H(Connect),				_IGNORE,				_IGNORE,				_IGNORE,				_IGNORE		},		// Connect
@@ -96,19 +99,7 @@ const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent
 	{	_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE,				_IGNORE		},		// ConnAckTimeout
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(KeepAlive),			_IGNORE		},		// KeepAlive
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingResp),			_IGNORE		},		// PingResp
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingRespTimeout),		_IGNORE		},		// ConnectionTimeout
-
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Subscribe),			_IGNORE		},		// Subscribe
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(SubAck),				_IGNORE		},		// SubAck
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// Unsubscribe
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// unsubAck
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Publish),				_IGNORE		},		// Publish
-	{	_IGNORE,				_IGNORE,				_IGNORE,				H(Published),			_IGNORE		},		// Published
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubAck
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubRec
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubRel
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// PubComp
-	{	_IGNORE,				_IGNORE,				_IGNORE,				_NOT_IMPL,				_IGNORE		},		// SessionTimeout
+	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingRespTimeout),		_IGNORE		},		// PingRespTimeout
 };
 
 void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
@@ -157,7 +148,7 @@ void CMaquetteImpl::receive(const web::websockets::client::websocket_incoming_me
 		});
 }
 
-CMqttState CMaquetteImpl::handleConnect(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleConnect(CMqttEvent* pEvent)
 {
 	CConnectEvent* p = getEvent<CConnectEvent>(pEvent);
 	m_connectParams = p->params();
@@ -182,10 +173,10 @@ CMqttState CMaquetteImpl::handleConnect(CMqttEvent* pEvent)
 			postEvent(CMqttEvent::ConnectedSocket);
 		});
 
-	return CMqttState::ConnectingSocket;
+	return CConnectionState::ConnectingSocket;
 }
 
-CMqttState CMaquetteImpl::handleDisconnect(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleDisconnect(CMqttEvent* pEvent)
 {
 	// Send Disconnect MQTT message then disconnect socket
 	CDisconnectPacket packet;
@@ -194,31 +185,31 @@ CMqttState CMaquetteImpl::handleDisconnect(CMqttEvent* pEvent)
 	return handleDisconnectSocket(pEvent);
 }
 
-CMqttState CMaquetteImpl::handleDisconnectSocket(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleDisconnectSocket(CMqttEvent* pEvent)
 {
 	m_keepAliveTimer.cancel();
 
 	// Disconnect socket
 	m_client->close();
-	return CMqttState::Disconnecting;
+	return CConnectionState::Disconnecting;
 }
 
-CMqttState CMaquetteImpl::handleConnectedSocket(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleConnectedSocket(CMqttEvent* pEvent)
 {
 	CConnectPacket packet(m_connectParams);
 	send(packet);
-	return CMqttState::ConnectingBroker;
+	return CConnectionState::ConnectingBroker;
 }
 
-CMqttState CMaquetteImpl::handleClosedSocket(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleClosedSocket(CMqttEvent* pEvent)
 {
 	m_keepAliveTimer.cancel();
 	m_client->close();
 	m_callback->onConnectionClosed();
-	return CMqttState::Initial;
+	return CConnectionState::Initial;
 }
 
-CMqttState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
 {
 	CConnAckPacket* packet = getReceivedPacket<CConnAckPacket>(pEvent);
 
@@ -227,24 +218,25 @@ CMqttState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
 		m_callback->onConnAck(true);
 
 		startEventTimer(m_keepAliveTimer, m_connectParams.keepAlive * 1000, CMqttEvent::KeepAlive);
-		return CMqttState::Connected;
+		return CConnectionState::Connected;
 	} else {
 		LOG4CPLUS_ERROR(logger, "MQTT CONNECT rejected: Return code=" << packet->returnCode.toString());
 		m_client->close();
 		m_callback->onConnAck(false);
-		return CMqttState::Initial;
+		return CConnectionState::Initial;
 	}
 }
 
-CMqttState CMaquetteImpl::handleSubscribe(CMqttEvent* pEvent)
+CSessionState CMaquetteImpl::handleSubscribe(CMqttEvent* pEvent)
 {
 	CSubscribeEvent* p = getEvent<CSubscribeEvent>(pEvent);
-	CSubscribePacket packet(p->params());
-	send(packet);
-	return m_state;
+	CSubscribePacket* packet = new CSubscribePacket(p->params());
+	send(*packet);
+
+	return CSessionState(CMqttEvent::SubAck, packet);
 }
 
-CMqttState CMaquetteImpl::handleSubAck(CMqttEvent* pEvent)
+CSessionState CMaquetteImpl::handleSubAck(CMqttEvent* pEvent)
 {
 	CSubAckPacket* packet = getReceivedPacket<CSubAckPacket>(pEvent);
 
@@ -255,27 +247,61 @@ CMqttState CMaquetteImpl::handleSubAck(CMqttEvent* pEvent)
 		LOG4CPLUS_ERROR(logger, "MQTT SUBSCRIBE rejected");
 		m_callback->onSubAck(false);
 	}
-	return m_state;
+	return CNoMoreEventState();
 }
 
-CMqttState CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
+CSessionState CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
 {
 	CPublishEvent* p = getEvent<CPublishEvent>(pEvent);
-	CPublishPacket packet(p->params());
-	send(packet);
-	return m_state;
+	CPublishPacket* packet = new CPublishPacket(p->params());
+	send(*packet);
+
+	switch(p->params().qos) {
+	default:
+		LOG4CPLUS_FATAL(logger, "Unknown QoS: " << p->params().qos);
+		_ASSERTE(!"Unknown QoS");
+		// go through
+	case QOS_0:
+		delete packet;
+		return CNoMoreEventState();
+	case QOS_1:
+		return CSessionState(CPacket::Type::PUBACK, packet);
+		break;
+	case QOS_2:
+		return CSessionState(CPacket::Type::PUBREC, packet);
+		break;
+	}
 }
 
-CMqttState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
+CSessionState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 {
 	CPublishPacket* packet = getReceivedPacket<CPublishPacket>(pEvent);
 	const CPublishEvent::Params& params = packet->params();
 
 	m_callback->onPublished(to_utf16string(params.topic).c_str(), params.payload);
-	return m_state;
+
+	switch(packet->params().qos) {
+	default:
+		LOG4CPLUS_FATAL(logger, "Unknown QoS: " << packet->params().qos);
+		_ASSERTE(!"Unknown QoS");
+		// go through
+	case QOS_0:
+		return CNoMoreEventState();
+		break;
+	case QOS_1:
+		{
+			CPubAckPacket* packet = new CPubAckPacket();
+			return CSessionState(CPacket::Type::PUBACK, packet);
+		}
+	case QOS_2:
+		{
+			CPubRecPacket* packet = new CPubRecPacket();
+			return CSessionState(CPacket::Type::PUBREC, packet);
+		}
+	}
 }
 
-CMqttState CMaquetteImpl::handleKeepAlive(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleKeepAlive(CMqttEvent* pEvent)
 {
 	CPingReqPacket packet;
 	send(packet);
@@ -283,7 +309,7 @@ CMqttState CMaquetteImpl::handleKeepAlive(CMqttEvent* pEvent)
 	return m_state;
 }
 
-CMqttState CMaquetteImpl::handlePingResp(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handlePingResp(CMqttEvent* pEvent)
 {
 	if(m_pingRespTimer.isActive()) {
 		m_pingRespTimer.cancel();
@@ -293,19 +319,19 @@ CMqttState CMaquetteImpl::handlePingResp(CMqttEvent* pEvent)
 	return m_state;
 }
 
-CMqttState CMaquetteImpl::handlePingRespTimeout(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handlePingRespTimeout(CMqttEvent* pEvent)
 {
 	LOG4CPLUS_ERROR(logger, "PingResp timeout.");
 	return handleDisconnectSocket(pEvent);
 }
 
-CMqttState CMaquetteImpl::handleIgnore(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleIgnore(CMqttEvent* pEvent)
 {
 	LOG4CPLUS_TRACE(logger, "handleIgnore(): event=" << pEvent->toString());
 	return m_state;
 }
 
-CMqttState CMaquetteImpl::handleFatal(CMqttEvent* pEvent)
+CConnectionState CMaquetteImpl::handleFatal(CMqttEvent* pEvent)
 {
 	LOG4CPLUS_FATAL(logger, "handleFatal(): event=" << pEvent->toString());
 	return m_state;

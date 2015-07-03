@@ -20,11 +20,14 @@ namespace MQTT {
 		virtual LRESULT onUserEvent(WPARAM wParam, LPARAM lParam);
 
 	protected:
-		CMqttState m_state;
+		CConnectionState m_state;
 		IMaquetteCallback* m_callback;
 
-		typedef CMqttState (CMaquetteImpl::*event_handler_t)(CMqttEvent* pEvent);
-		static const event_handler_t state_event_table[CMqttEvent::Value::_Count][CMqttState::Value::_Count];
+		typedef CConnectionState (CMaquetteImpl::*event_handler_t)(CMqttEvent* pEvent);
+		static const event_handler_t state_event_table[CMqttEvent::Value::_Count][CConnectionState::Value::_Count];
+
+		typedef std::map<uint16_t, CSessionState> session_states_t;
+		session_states_t m_sessionStates;
 
 		void send(MQTT::CPacketToSend& packet, bool wait = false);
 		void receive(const web::websockets::client::websocket_incoming_message& msg);
@@ -39,22 +42,22 @@ namespace MQTT {
 			});
 		};
 
-		CMqttState handleConnect(CMqttEvent* pEvent);
-		CMqttState handleDisconnect(CMqttEvent* pEvent);
-		CMqttState handleDisconnectSocket(CMqttEvent* pEvent);
-		CMqttState handleConnectedSocket(CMqttEvent* pEvent);
-		CMqttState handleClosedSocket(CMqttEvent* pEvent);
-		CMqttState handleConnAck(CMqttEvent* pEvent);
-		CMqttState handleSubscribe(CMqttEvent* pEvent);
-		CMqttState handleSubAck(CMqttEvent* pEvent);
-		CMqttState handlePublish(CMqttEvent* pEvent);
-		CMqttState handlePublished(CMqttEvent* pEvent);
-		CMqttState handleKeepAlive(CMqttEvent* pEvent);
-		CMqttState handlePingResp(CMqttEvent* pEvent);
-		CMqttState handlePingRespTimeout(CMqttEvent* pEvent);
+		CConnectionState handleConnect(CMqttEvent* pEvent);
+		CConnectionState handleDisconnect(CMqttEvent* pEvent);
+		CConnectionState handleDisconnectSocket(CMqttEvent* pEvent);
+		CConnectionState handleConnectedSocket(CMqttEvent* pEvent);
+		CConnectionState handleClosedSocket(CMqttEvent* pEvent);
+		CConnectionState handleConnAck(CMqttEvent* pEvent);
+		CConnectionState handleKeepAlive(CMqttEvent* pEvent);
+		CConnectionState handlePingResp(CMqttEvent* pEvent);
+		CConnectionState handlePingRespTimeout(CMqttEvent* pEvent);
+		CConnectionState handleIgnore(CMqttEvent* pEvent);
+		CConnectionState handleFatal(CMqttEvent* pEvent);
 
-		CMqttState handleIgnore(CMqttEvent* pEvent);
-		CMqttState handleFatal(CMqttEvent* pEvent);
+		CSessionState handleSubscribe(CMqttEvent* pEvent);
+		CSessionState handleSubAck(CMqttEvent* pEvent);
+		CSessionState handlePublish(CMqttEvent* pEvent);
+		CSessionState handlePublished(CMqttEvent* pEvent);
 
 		std::shared_ptr<web::websockets::client::websocket_callback_client> m_client;
 		CTimer m_keepAliveTimer;
@@ -74,7 +77,7 @@ namespace MQTT {
 		packet_t* getReceivedPacket(CMqttEvent* e)
 		{
 			CReceivedPacketEvent* p = getEvent<CReceivedPacketEvent>(e);
-			packet_t* packet = dynamic_cast<packet_t*>(p->packet());
+			packet_t* packet = dynamic_cast<packet_t*>(p->packet().get());
 			_ASSERTE(packet);
 			return packet;
 		}
