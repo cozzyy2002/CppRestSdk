@@ -59,26 +59,60 @@ void CMaquetteImpl::postEvent(CMqttEvent* pEvent)
 
 LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 {
-	CMqttEvent* pEvent = (CMqttEvent*)lParam;
+	std::shared_ptr<CMqttEvent> pEvent((CMqttEvent*)lParam);
 	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_state.toString() << ", event=" << pEvent->toString());
 
-	if(!m_state.isValid()) {
-		LOG4CPLUS_FATAL(logger, "CConnectionState is out of range: " << (byte)m_state);
-		return 0;
-	}
 	if(!pEvent->isValid()) {
-		LOG4CPLUS_FATAL(logger, "CMqttEvent is out of range: " << (byte)pEvent);
+		LOG4CPLUS_FATAL(logger, "CMqttEvent is out of range: " << pEvent->value<CMqttEvent::Value>());
 		return 0;
 	}
 
 	if(pEvent->isConnectionEvent()) {
-		event_handler_t handler = state_event_table[*pEvent][m_state];
-		m_state = (this->*handler)(pEvent);
+		if(!m_state.isValid()) {
+			LOG4CPLUS_FATAL(logger, "CConnectionState is out of range: " << (byte)m_state);
+			return 0;
+		}
+
+		connection_event_handler_t handler = state_event_table[*pEvent][m_state];
+		m_state = (this->*handler)(pEvent.get());
 		LOG4CPLUS_TRACE(logger, "OnUserEvent(): new state=" << m_state.toString());
 	} else {
+		const SessionEvent& event = sesstion_event_table[pEvent->getEventIndex()];
+		if(event.requestHandler) {
+			// Send PUBLISH, SUBSCRIBE, UNSUBSCRIBE
+			LOG4CPLUS_TRACE(logger, "Handling request: " << pEvent->toString());
+			(this->*event.requestHandler)(pEvent.get());
+		} else {
+			session_states_t::iterator it = m_sessionStates.end();
+			if(event.getPacketIdentifier) {
+				uint16_t packetIdentifier = event.getPacketIdentifier(pEvent.get());
+				it = m_sessionStates.find(packetIdentifier);
+			}
+			if(pEvent->value<CMqttEvent::Value>() != CMqttEvent::SessionTimeout) {
+				// TODO:
+				//   Check if type of received packet equals to CSessionState::responseType
 
+				if(event.responseHandler) {
+					// Received SUBACK, UNSUBACK, PUBLISH, PUBACK, PUBREC, PUBREL, PUBCOMP
+					LOG4CPLUS_TRACE(logger, "Handling response: " << pEvent->toString());
+					(this->*event.responseHandler)(pEvent.get(), it);
+				} else {
+					LOG4CPLUS_WARN(logger, "No response handler: event=" << pEvent->toString());
+					_ASSERTE(!"No response handler");
+				}
+			} else {
+				// Response timeout
+				if(event.timeoutHandler) {
+					LOG4CPLUS_INFO(logger, "Handling timeout: " << pEvent->toString()
+											<< ", expect " << ((it != m_sessionStates.end()) ? it->second.responseType.toString() : ""));
+					(this->*event.timeoutHandler)(pEvent.get(), it);
+				} else {
+					LOG4CPLUS_WARN(logger, "No timeout handler: event=" << pEvent->toString());
+					_ASSERTE(!"No timeout handler");
+				}
+			}
+		}
 	}
-	delete pEvent;
 
 	return 0;
 }
@@ -88,7 +122,7 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 #define _FATAL H(Fatal)
 #define _NOT_IMPL _FATAL
 
-const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent::Value::_Count][CConnectionState::_Count] =
+const CMaquetteImpl::connection_event_handler_t CMaquetteImpl::state_event_table[CMqttEvent::_ConnectionEventCount][CConnectionState::_Count] =
 {
 	//	Initial					ConnectingSocket		ConnectingBroker		Connected				Disconnecting
 	{	H(Connect),				_IGNORE,				_IGNORE,				_IGNORE,				_IGNORE		},		// Connect
@@ -100,6 +134,19 @@ const CMaquetteImpl::event_handler_t CMaquetteImpl::state_event_table[CMqttEvent
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(KeepAlive),			_IGNORE		},		// KeepAlive
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingResp),			_IGNORE		},		// PingResp
 	{	_IGNORE,				_IGNORE,				_IGNORE,				H(PingRespTimeout),		_IGNORE		},		// PingRespTimeout
+};
+
+const CMaquetteImpl::SessionEvent CMaquetteImpl::sesstion_event_table[CMqttEvent::_SessionEventCount] = {
+	{	H(Subscribe)		},
+	{	NULL,	H(SubAck),		H(SubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CSubAckPacket>(e)->packetIdentifier; }		},
+	{	H(Unsubscribe)		},
+	{	NULL,	H(UnsubAck),	H(UnsubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CUnsubAckPacket>(e)->packetIdentifier; }	},
+	{	H(Publish)			},
+	{	NULL,	H(Published)	},
+	{	NULL,	H(PubAck),		H(PubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubAckPacket>(e)->packetIdentifier; }		},
+	{	NULL,	H(PubRec),		H(PubRecTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubRecPacket>(e)->packetIdentifier; }		},
+	{	NULL,	H(PubRel),		H(PubRelTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubRelPacket>(e)->packetIdentifier; }		},
+	{	NULL,	H(PubComp),		H(PubCompTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubCompPacket>(e)->packetIdentifier; }	},
 };
 
 void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
@@ -227,16 +274,16 @@ CConnectionState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
 	}
 }
 
-CSessionState CMaquetteImpl::handleSubscribe(CMqttEvent* pEvent)
+void CMaquetteImpl::handleSubscribe(CMqttEvent* pEvent)
 {
 	CSubscribeEvent* p = getEvent<CSubscribeEvent>(pEvent);
 	CSubscribePacket* packet = new CSubscribePacket(p->params());
 	send(*packet);
 
-	return CSessionState(CMqttEvent::SubAck, packet);
+	m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::SUBACK, packet);
 }
 
-CSessionState CMaquetteImpl::handleSubAck(CMqttEvent* pEvent)
+void CMaquetteImpl::handleSubAck(CMqttEvent* pEvent, session_states_t::iterator it)
 {
 	CSubAckPacket* packet = getReceivedPacket<CSubAckPacket>(pEvent);
 
@@ -247,10 +294,33 @@ CSessionState CMaquetteImpl::handleSubAck(CMqttEvent* pEvent)
 		LOG4CPLUS_ERROR(logger, "MQTT SUBSCRIBE rejected");
 		m_callback->onSubAck(false);
 	}
-	return CNoMoreEventState();
+
+	m_sessionStates.erase(it);
 }
 
-CSessionState CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
+#define _SESSION_HANDLER_NOT_IMPL LOG4CPLUS_WARN(logger, "Not implemented: " __FUNCTION__)
+
+void CMaquetteImpl::handleSubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handleUnsubscribe(CMqttEvent* pEvent)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handleUnsubAck(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handleUnsubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
 {
 	CPublishEvent* p = getEvent<CPublishEvent>(pEvent);
 	CPublishPacket* packet = new CPublishPacket(p->params());
@@ -263,22 +333,20 @@ CSessionState CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
 		// go through
 	case QOS_0:
 		delete packet;
-		return CNoMoreEventState();
+		break;
 	case QOS_1:
-		return CSessionState(CPacket::Type::PUBACK, packet);
+		m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::PUBACK, packet);
 		break;
 	case QOS_2:
-		return CSessionState(CPacket::Type::PUBREC, packet);
+		m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::PUBREC, packet);
 		break;
 	}
 }
 
-CSessionState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
+void CMaquetteImpl::handlePublished(CMqttEvent* pEvent, session_states_t::iterator /* not used */)
 {
 	CPublishPacket* packet = getReceivedPacket<CPublishPacket>(pEvent);
 	const CPublishEvent::Params& params = packet->params();
-
-	m_callback->onPublished(to_utf16string(params.topic).c_str(), params.payload);
 
 	switch(packet->params().qos) {
 	default:
@@ -286,19 +354,61 @@ CSessionState CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 		_ASSERTE(!"Unknown QoS");
 		// go through
 	case QOS_0:
-		return CNoMoreEventState();
 		break;
 	case QOS_1:
 		{
-			CPubAckPacket* packet = new CPubAckPacket();
-			return CSessionState(CPacket::Type::PUBACK, packet);
+			CPubAckPacket packet;
+			send(packet);
 		}
 	case QOS_2:
 		{
 			CPubRecPacket* packet = new CPubRecPacket();
-			return CSessionState(CPacket::Type::PUBREC, packet);
+			send(*packet);
+			m_sessionStates[packet->packetIdentifier] = CSessionState(CPacket::Type::PUBREL, packet);
 		}
 	}
+
+	m_callback->onPublished(to_utf16string(params.topic).c_str(), params.payload);
+}
+
+void CMaquetteImpl::handlePubAck(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handlePubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handlePubRec(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handlePubRecTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handlePubRel(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handlePubRelTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handlePubComp(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
+}
+
+void CMaquetteImpl::handlePubCompTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
+{
+	_SESSION_HANDLER_NOT_IMPL;
 }
 
 CConnectionState CMaquetteImpl::handleKeepAlive(CMqttEvent* pEvent)

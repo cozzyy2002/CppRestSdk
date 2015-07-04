@@ -38,8 +38,8 @@ namespace MQTT {
 			NoMoreEvent,			// Remove current state 
 			PreserveCurrentState,	// Do not modify current state
 
-			_SessionEventCount,
-			_Count = _SessionEventCount,	// Count of enum value for boundary check
+			_Count,	// Count of enum value for boundary check
+			_SessionEventCount = _Count - _ConnectionEventCount,
 		} Value;
 
 		// NOTE: Default constructor is called as member of CReceivedPacket
@@ -139,11 +139,15 @@ namespace MQTT {
 		std::shared_ptr<CReceivedPacket> m_packet;
 	};
 
+	class CSessionResponseEvent : public CMqttEvent {
+	public:
+	};
+
 	class CSessionTimeoutEvent : public CMqttEvent {
 	public:
-		CSessionTimeoutEvent(uint16_t packetIdentifire)
-			: CMqttEvent(Value::SessionTimeout), packetIdentifire(packetIdentifire) {};
+		CSessionTimeoutEvent(uint16_t packetIdentifier)
+			: CMqttEvent(Value::SessionTimeout), packetIdentifier(packetIdentifier) {};
 
-		const uint16_t packetIdentifire;
+		const uint16_t packetIdentifier;
 	};
 }

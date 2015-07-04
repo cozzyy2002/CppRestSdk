@@ -12,3 +12,4 @@ const LPCSTR CConnectionState::m_valueNames[Value::_Count] = {
 	_TO_STRING(Connected),
 	_TO_STRING(Disconnecting)
 };
+

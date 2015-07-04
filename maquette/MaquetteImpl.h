@@ -23,11 +23,8 @@ namespace MQTT {
 		CConnectionState m_state;
 		IMaquetteCallback* m_callback;
 
-		typedef CConnectionState (CMaquetteImpl::*event_handler_t)(CMqttEvent* pEvent);
-		static const event_handler_t state_event_table[CMqttEvent::Value::_Count][CConnectionState::Value::_Count];
-
-		typedef std::map<uint16_t, CSessionState> session_states_t;
-		session_states_t m_sessionStates;
+		typedef CConnectionState (CMaquetteImpl::*connection_event_handler_t)(CMqttEvent* pEvent);
+		static const connection_event_handler_t state_event_table[CMqttEvent::_ConnectionEventCount][CConnectionState::_Count];
 
 		void send(MQTT::CPacketToSend& packet, bool wait = false);
 		void receive(const web::websockets::client::websocket_incoming_message& msg);
@@ -54,33 +51,61 @@ namespace MQTT {
 		CConnectionState handleIgnore(CMqttEvent* pEvent);
 		CConnectionState handleFatal(CMqttEvent* pEvent);
 
-		CSessionState handleSubscribe(CMqttEvent* pEvent);
-		CSessionState handleSubAck(CMqttEvent* pEvent);
-		CSessionState handlePublish(CMqttEvent* pEvent);
-		CSessionState handlePublished(CMqttEvent* pEvent);
+		typedef std::map<uint16_t, CSessionState> session_states_t;
+		session_states_t m_sessionStates;
+
+		typedef void (CMaquetteImpl::*session_request_handler_t)(CMqttEvent* pEvent);
+		typedef void (CMaquetteImpl::*session_response_handler_t)(CMqttEvent* pEvent, session_states_t::iterator it);
+		typedef void (CMaquetteImpl::*session_timeout_handler_t)(CMqttEvent* pEvent, session_states_t::iterator it);
+		typedef uint16_t (*packet_identifier_getter)(CMqttEvent* pEvent);
+
+		typedef struct _SesstionEvent {
+			session_request_handler_t requestHandler;
+			session_response_handler_t responseHandler;
+			session_timeout_handler_t timeoutHandler;
+			packet_identifier_getter getPacketIdentifier;
+		} SessionEvent;
+		static const SessionEvent sesstion_event_table[CMqttEvent::_SessionEventCount];
+
+		void handleSubscribe(CMqttEvent* pEvent);
+		void handleSubAck(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handleSubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handleUnsubscribe(CMqttEvent* pEvent);
+		void handleUnsubAck(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handleUnsubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePublish(CMqttEvent* pEvent);
+		void handlePublished(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePubAck(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePubRec(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePubRecTimeout(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePubRel(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePubRelTimeout(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePubComp(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePubCompTimeout(CMqttEvent* pEvent, session_states_t::iterator it);
 
 		std::shared_ptr<web::websockets::client::websocket_callback_client> m_client;
 		CTimer m_keepAliveTimer;
 		CTimer m_pingRespTimer;
 		static const DWORD m_responseTime_ms = 10000;
 		CConnectEvent::Params m_connectParams;
-
-		template<class event_t>
-		event_t* getEvent(CMqttEvent* e)
-		{
-			event_t* ret = dynamic_cast<event_t*>(e);
-			_ASSERTE(ret);
-			return ret;
-		}
-
-		template<class packet_t>
-		packet_t* getReceivedPacket(CMqttEvent* e)
-		{
-			CReceivedPacketEvent* p = getEvent<CReceivedPacketEvent>(e);
-			packet_t* packet = dynamic_cast<packet_t*>(p->packet().get());
-			_ASSERTE(packet);
-			return packet;
-		}
 	};
+
+	template<class event_t>
+	event_t* getEvent(CMqttEvent* e)
+	{
+		event_t* ret = dynamic_cast<event_t*>(e);
+		_ASSERTE(ret);
+		return ret;
+	}
+
+	template<class packet_t>
+	packet_t* getReceivedPacket(CMqttEvent* e)
+	{
+		CReceivedPacketEvent* p = getEvent<CReceivedPacketEvent>(e);
+		packet_t* packet = dynamic_cast<packet_t*>(p->packet().get());
+		_ASSERTE(packet);
+		return packet;
+	}
 
 } // namespace MQTT

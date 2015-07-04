@@ -19,6 +19,8 @@ public:
 		return (names && isValid()) ? names[m_value] : "UNKNOWN";
 	};
 	virtual operator int() const { return m_value; };
+	template<typename T>
+	inline T value() const { return (T)m_value; };
 
 	virtual bool isValid() const { return isValid(m_value); };
 	template<typename T>

@@ -42,21 +42,22 @@ namespace MQTT {
 			} Property;
 
 			// Constructor from Value type
-			Type(Value value) : CEnumValue(value), property(m_properties[m_value]) {};
+			Type(Value value) : CEnumValue(value), m_property(&m_properties[m_value]) {};
 			// Constructor from received data
 			// NOTE: Validate value using validate() method before create this object
-			Type(byte value) : CEnumValue((Value)(value >> 4)), property(m_properties[m_value]) {};
+			Type(byte value) : CEnumValue((Value)(value >> 4)), m_property(&m_properties[m_value]) {};
 
 			inline static bool checkValue(byte value) { return ((value >> 4) < Value::_Count); };
 
 			// Encode value to byte to send to server with Flag bits
 			// NOTE: To decode received byte, use Type(byte) constructor
-			inline byte encode(byte flagBit) const { return (m_value << 4) | property.flagBit | flagBit; };
-			inline virtual LPCSTR toString() const { return property.name; };
+			inline byte encode(byte flagBit) const { return (m_value << 4) | m_property->flagBit | flagBit; };
+			inline virtual LPCSTR toString() const { return m_property->name; };
 			inline static LPCSTR toString(byte value) { return m_properties[value >> 4].name; }
-			const Property& property;
+			const Property& property() const { return *m_property; };
 
 		protected:
+			const Property* m_property;
 			static const Property m_properties[Type::_Count];
 		};
 
@@ -214,6 +215,15 @@ namespace MQTT {
 		uint16_t packetIdentifier;
 		byte qos;
 		bool isAccepted;
+
+		virtual bool parse(size_t& pos);
+	};
+
+	class CUnsubAckPacket : public CReceivedPacket {
+	public:
+		CUnsubAckPacket(const data_t& data) : CPacket(Type::UNSUBACK, data), CReceivedPacket(m_type, CMqttEvent::UnsubAck) {};
+
+		uint16_t packetIdentifier;
 
 		virtual bool parse(size_t& pos);
 	};

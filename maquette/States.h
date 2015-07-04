@@ -26,26 +26,15 @@ namespace MQTT {
 
 	class CSessionState {
 	public:
+		CSessionState()
+			: responseType(CPacket::Type::Reserved_0), packetSent(NULL) {};
 
 		CSessionState(CPacket::Type type, CPacketToSend* packet)
-			: responseType(type), packet(packet) {};
+			: responseType(type), packetSent(packet) {};
 
 		virtual ~CSessionState() {};
 
-		CSessionState handleResponse(CMqttEvent* pEvent);
-		CSessionState handleTimeout(CMqttEvent* pEvent);
-
-		const CPacket::Type responseType;
-		const std::shared_ptr<CPacketToSend> packet;
-	};
-
-	class CNoMoreEventState : public CSessionState {
-	public:
-		CNoMoreEventState() : CSessionState(CMqttEvent::NoMoreEvent, NULL) {};
-	};
-
-	class CPreserveCurrentState : public CSessionState {
-	public:
-		CPreserveCurrentState() : CSessionState(CMqttEvent::PreserveCurrentState, NULL) {};
+		CPacket::Type responseType;
+		std::shared_ptr<CPacketToSend> packetSent;
 	};
 }

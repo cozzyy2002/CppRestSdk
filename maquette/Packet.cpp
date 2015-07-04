@@ -12,13 +12,6 @@ static CReceivedPacket* CAN_NOT_CREATE(const data_t& data)
 	return (CReceivedPacket*)NULL;
 }
 
-static CReceivedPacket* NOT_IMPLEMENTED(const data_t& data)
-{
-	CPacket::Type type(data[0]);
-	LOG4CPLUS_ERROR(logger, "Packet type whose parser is not implemented yet: " << type.toString());
-	return (CReceivedPacket*)NULL;
-}
-
 const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 //	flagBit	sendToServer	name				createPacket
 	0,		false,			"Reserved(0)",		CAN_NOT_CREATE,
@@ -32,7 +25,7 @@ const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 	2,		true,			"SUBSCRIBE",		CAN_NOT_CREATE,
 	0,		false,			"SUBACK",			[](const data_t& data) { return new CSubAckPacket(data); },
 	2,		true,			"UNSUBSCRIBE",		CAN_NOT_CREATE,
-	0,		false,			"UNSUBACK",			NOT_IMPLEMENTED,
+	0,		false,			"UNSUBACK",			[](const data_t& data) { return new CUnsubAckPacket(data); },
 	0,		true,			"PINGREQ",			CAN_NOT_CREATE,
 	0,		false,			"PINGRESP",			[](const data_t& data) { return new CPingRespPacket(data); },
 	0,		true,			"DISCONNECT",		CAN_NOT_CREATE,
@@ -43,7 +36,7 @@ const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 
 CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(type)
 {
-	_ASSERTE(m_type.property.sendToServer);
+	_ASSERTE(m_type.property().sendToServer);
 	_ASSERTE(size <= remainingLengthMax);
 	m_remainings.reserve(size);
 
@@ -165,7 +158,7 @@ const data_t& CPublishPacket::data()
 	}
 
 	Type type(typeValue);
-	CReceivedPacket* packet = type.property.createPacket(data);
+	CReceivedPacket* packet = type.property().createPacket(data);
 	if(packet && !packet->parse()) {
 		delete packet;
 		packet = NULL;
@@ -248,6 +241,12 @@ bool CSubAckPacket::parse(size_t& pos)
 	const byte& returnCode = m_data[pos];
 	qos = returnCode & 0x03;
 	isAccepted = (returnCode & 0x80) == 0;
+	return true;
+}
+
+bool CUnsubAckPacket::parse(size_t& pos)
+{
+	packetIdentifier = makeWord(pos);
 	return true;
 }
 
