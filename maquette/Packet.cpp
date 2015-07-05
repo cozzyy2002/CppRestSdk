@@ -258,7 +258,7 @@ bool CPublishPacket::parse(size_t& pos)
 	checkLength(pos, size);
 	m_params.topic.assign((LPCSTR)&m_data[pos], size); pos += size;
 	if(QOS_0 < m_params.qos) {
-		m_params.packetIdentifier = makeWord(pos);
+		m_params.packetIdentifier = m_packetIdentifier = makeWord(pos);
 	}
 	m_params.payload.assign(m_data.begin() + pos, m_data.end());
 	return true;

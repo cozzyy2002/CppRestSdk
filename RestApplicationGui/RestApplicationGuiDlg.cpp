@@ -71,6 +71,7 @@ void CRestApplicationGuiDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_PAYLOAD, m_Payload);
 	DDX_Text(pDX, IDC_EDIT_TOPIC, m_Topic);
 	DDX_Text(pDX, IDC_EDIT_CONNET_STATUS, m_ConnectStatusText);
+	DDX_Control(pDX, IDC_COMBO_QOS, m_selectQos);
 }
 
 BEGIN_MESSAGE_MAP(CRestApplicationGuiDlg, CDialogEx)
@@ -120,7 +121,13 @@ BOOL CRestApplicationGuiDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
-	// TODO: Add extra initialization here
+	// Add QoS selecter
+	m_selectQos.AddString(_T("QoS 0"));
+	m_selectQos.AddString(_T("QoS 1"));
+	m_selectQos.AddString(_T("QoS 2"));
+	m_selectQos.SetCurSel(0);
+
+	// Create maquette instance
 	m_maquette.reset(createMaquette(this));
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -226,13 +233,12 @@ void CRestApplicationGuiDlg::OnClickedButtonDisconnect()
 void CRestApplicationGuiDlg::OnClickedButtonSubscibe()
 {
 	UpdateData();
-	m_maquette->subscribe(m_Topic);
+	m_maquette->subscribe(m_Topic, (MQTT::QOS)m_selectQos.GetCurSel());
 }
 
 
 void CRestApplicationGuiDlg::OnClickedButtonUnsubscibe()
 {
-	// TODO: Add your control notification handler code here
 	UpdateData();
 	data_t data;
 	data.assign((byte*)(LPCTSTR)m_Topic, (byte*)&((LPCTSTR)m_Topic)[m_Topic.GetLength()]);
@@ -246,7 +252,7 @@ void CRestApplicationGuiDlg::OnClickedButtonPublish()
 	ATL::CT2A message(m_Payload);
 	data_t payload;
 	payload.assign((LPCSTR)message, &((LPCSTR)message)[m_Payload.GetLength()]);
-	m_maquette->publish(m_Topic, payload);
+	m_maquette->publish(m_Topic, payload, (MQTT::QOS)m_selectQos.GetCurSel());
 }
 
 void CRestApplicationGuiDlg::setConnectStatus(ConnectStatus status)

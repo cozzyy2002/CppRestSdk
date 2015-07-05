@@ -362,12 +362,14 @@ void CMaquetteImpl::handlePublished(CMqttEvent* pEvent, session_states_t::iterat
 			CPubAckPacket p(packet->packetIdentifier());
 			send(p);
 		}
+		break;
 	case QOS_2:
 		{
 			CPubRecPacket* p = new CPubRecPacket(packet->packetIdentifier());
 			send(*p);
 			m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::PUBREL, p);
 		}
+		break;
 	}
 
 	m_callback->onPublished(to_utf16string(params.topic).c_str(), params.payload);

@@ -84,4 +84,6 @@ public:
 	virtual void OnCancel();
 protected:
 	afx_msg LRESULT OnUserEvent(WPARAM wParam, LPARAM lParam);
+public:
+	CComboBox m_selectQos;
 };
