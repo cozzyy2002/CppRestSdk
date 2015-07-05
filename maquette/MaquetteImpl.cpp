@@ -137,16 +137,18 @@ const CMaquetteImpl::connection_event_handler_t CMaquetteImpl::state_event_table
 };
 
 const CMaquetteImpl::SessionEvent CMaquetteImpl::sesstion_event_table[CMqttEvent::_SessionEventCount] = {
+	//	Request handler
+	//			Response handler, Timeout handler,	Getter packet identifier from received packet
 	{	H(Subscribe)		},
-	{	NULL,	H(SubAck),		H(SubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CSubAckPacket>(e)->packetIdentifier; }		},
+	{	NULL,	H(SubAck),		H(SubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CSubAckPacket>(e)->packetIdentifier(); }	},
 	{	H(Unsubscribe)		},
-	{	NULL,	H(UnsubAck),	H(UnsubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CUnsubAckPacket>(e)->packetIdentifier; }	},
+	{	NULL,	H(UnsubAck),	H(UnsubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CUnsubAckPacket>(e)->packetIdentifier(); }	},
 	{	H(Publish)			},
-	{	NULL,	H(Published)	},
-	{	NULL,	H(PubAck),		H(PubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubAckPacket>(e)->packetIdentifier; }		},
-	{	NULL,	H(PubRec),		H(PubRecTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubRecPacket>(e)->packetIdentifier; }		},
-	{	NULL,	H(PubRel),		H(PubRelTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubRelPacket>(e)->packetIdentifier; }		},
-	{	NULL,	H(PubComp),		H(PubCompTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubCompPacket>(e)->packetIdentifier; }	},
+	{	NULL,	H(Published)	},	// Published event(Received PUBLISH packet) has no timeout handler
+	{	NULL,	H(PubAck),		H(PubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubAckPacket>(e)->packetIdentifier(); }	},
+	{	NULL,	H(PubRec),		H(PubRecTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubRecPacket>(e)->packetIdentifier(); }	},
+	{	NULL,	H(PubRel),		H(PubRelTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubRelPacket>(e)->packetIdentifier(); }	},
+	{	NULL,	H(PubComp),		H(PubCompTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubCompPacket>(e)->packetIdentifier(); }	},
 };
 
 void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
@@ -357,14 +359,14 @@ void CMaquetteImpl::handlePublished(CMqttEvent* pEvent, session_states_t::iterat
 		break;
 	case QOS_1:
 		{
-			CPubAckPacket packet;
-			send(packet);
+			CPubAckPacket p(packet->packetIdentifier());
+			send(p);
 		}
 	case QOS_2:
 		{
-			CPubRecPacket* packet = new CPubRecPacket();
-			send(*packet);
-			m_sessionStates[packet->packetIdentifier] = CSessionState(CPacket::Type::PUBREL, packet);
+			CPubRecPacket* p = new CPubRecPacket(packet->packetIdentifier());
+			send(*p);
+			m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::PUBREL, p);
 		}
 	}
 

@@ -32,7 +32,7 @@ const CPacket::Type::Property CPacket::Type::m_properties[Type::_Count] = {
 	0,		false,			"Reserved(15)",		CAN_NOT_CREATE,
 };
 
-/*static*/ uint16_t CPacketToSend::g_packetIdentifier = 0;
+/*static*/ uint16_t CPacketToSend::g_packetIdentifier = CPacketToSend::UNUSED_PACKET_IDENTIFIER;
 
 CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(type)
 {
@@ -40,7 +40,7 @@ CPacketToSend::CPacketToSend(const Type& type, size_t size /*= 100*/) : CPacket(
 	_ASSERTE(size <= remainingLengthMax);
 	m_remainings.reserve(size);
 
-	if(0 == ++g_packetIdentifier) g_packetIdentifier = 1;
+	if(UNUSED_PACKET_IDENTIFIER == ++g_packetIdentifier) g_packetIdentifier = 1;
 	m_packetIdentifier = g_packetIdentifier;
 }
 
@@ -109,7 +109,7 @@ size_t CPacketToSend::encodeRemainingLength(byte(& encoded)[size], size_t length
 
 const data_t& CSimplePacket::data()
 {
-	if(m_usePacketIdentifier) add(m_packetIdentifier);
+	if(UNUSED_PACKET_IDENTIFIER != m_packetIdentifier) add(m_packetIdentifier);
 	return CPacketToSend::data(0);
 }
 
@@ -222,8 +222,8 @@ void CReceivedPacket::checkLength(size_t pos, size_t size) const
 
 bool CSimplePacket::parse(size_t& pos, bool usePacketIdentifier)
 {
-	if(m_usePacketIdentifier) {
-		packetIdentifier = makeWord(pos);
+	if(usePacketIdentifier) {
+		m_packetIdentifier = makeWord(pos);
 	}
 	return true;
 }
@@ -237,7 +237,7 @@ bool CConnAckPacket::parse(size_t& pos)
 
 bool CSubAckPacket::parse(size_t& pos)
 {
-	packetIdentifier = makeWord(pos);
+	m_packetIdentifier = makeWord(pos);
 	const byte& returnCode = m_data[pos];
 	qos = returnCode & 0x03;
 	isAccepted = (returnCode & 0x80) == 0;
@@ -246,7 +246,7 @@ bool CSubAckPacket::parse(size_t& pos)
 
 bool CUnsubAckPacket::parse(size_t& pos)
 {
-	packetIdentifier = makeWord(pos);
+	m_packetIdentifier = makeWord(pos);
 	return true;
 }
 

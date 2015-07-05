@@ -8,10 +8,10 @@ static log4cplus::Logger logger = log4cplus::Logger::getInstance(_T("MQTT.unitte
 
 class Testee : public CSimplePacket {
 public:
-	Testee(const Type& type, bool usePacketIdentifier)
-		: CPacket(type), CSimplePacket(type, usePacketIdentifier) {};
-	Testee(const Type& type, const data_t& data, CMqttEvent::Value event, bool usePacketIdentifier)
-		: CPacket(type, data), CSimplePacket(type, event, usePacketIdentifier) {};
+	Testee(const Type& type)
+		: CPacket(type), CSimplePacket(type) {};
+	Testee(const Type& type, const data_t& data, CMqttEvent::Value event)
+		: CPacket(type, data), CSimplePacket(type, event) {};
 
 	using CPacketToSend::encodeRemainingLength;
 	using CReceivedPacket::decodeRemainingLength;
@@ -20,7 +20,7 @@ public:
 
 class CPacketTest : public Test {
 public:
-	CPacketTest() : testee(CPacket::Type::CONNECT, false) {};
+	CPacketTest() : testee(CPacket::Type::CONNECT) {};
 	Testee testee;
 
 	static const size_t remainingLengthPosition = 1;	// Position of encoded Remaining Length in m_data
