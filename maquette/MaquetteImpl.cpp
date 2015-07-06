@@ -391,7 +391,7 @@ void CMaquetteImpl::handlePublished(CMqttEvent* pEvent, session_states_t::iterat
 
 void CMaquetteImpl::handlePubAck(CMqttEvent* pEvent, session_states_t::iterator it)
 {
-	_SESSION_HANDLER_NOT_IMPL;
+	m_sessionStates.erase(it);
 }
 
 void CMaquetteImpl::handlePubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
@@ -401,7 +401,11 @@ void CMaquetteImpl::handlePubAckTimeout(CMqttEvent* pEvent, session_states_t::it
 
 void CMaquetteImpl::handlePubRec(CMqttEvent* pEvent, session_states_t::iterator it)
 {
-	_SESSION_HANDLER_NOT_IMPL;
+	uint16_t packetIdentifier = getReceivedPacket<CPubRecPacket>(pEvent)->packetIdentifier();
+	CPubRelPacket* packet = new CPubRelPacket(packetIdentifier);
+	send(*packet);
+
+	m_sessionStates[packetIdentifier] = CSessionState(CPacket::Type::PUBCOMP, packet);
 }
 
 void CMaquetteImpl::handlePubRecTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
@@ -411,7 +415,12 @@ void CMaquetteImpl::handlePubRecTimeout(CMqttEvent* pEvent, session_states_t::it
 
 void CMaquetteImpl::handlePubRel(CMqttEvent* pEvent, session_states_t::iterator it)
 {
-	_SESSION_HANDLER_NOT_IMPL;
+	uint16_t packetIdentifier = getReceivedPacket<CPubRelPacket>(pEvent)->packetIdentifier();
+	CPubCompPacket packet(packetIdentifier);
+	send(packet);
+
+	// What if PUBREL will be sent from server?
+	m_sessionStates.erase(packetIdentifier);
 }
 
 void CMaquetteImpl::handlePubRelTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
@@ -421,7 +430,8 @@ void CMaquetteImpl::handlePubRelTimeout(CMqttEvent* pEvent, session_states_t::it
 
 void CMaquetteImpl::handlePubComp(CMqttEvent* pEvent, session_states_t::iterator it)
 {
-	_SESSION_HANDLER_NOT_IMPL;
+	uint16_t packetIdentifier = getReceivedPacket<CPubCompPacket>(pEvent)->packetIdentifier();
+	m_sessionStates.erase(packetIdentifier);
 }
 
 void CMaquetteImpl::handlePubCompTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
