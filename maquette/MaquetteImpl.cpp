@@ -60,7 +60,6 @@ void CMaquetteImpl::postEvent(CMqttEvent* pEvent)
 LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 {
 	std::shared_ptr<CMqttEvent> pEvent((CMqttEvent*)lParam);
-	LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_state.toString() << ", event=" << pEvent->toString());
 
 	if(!pEvent->isValid()) {
 		LOG4CPLUS_FATAL(logger, "CMqttEvent is out of range: " << pEvent->value<CMqttEvent::Value>());
@@ -68,6 +67,7 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 	}
 
 	if(pEvent->isConnectionEvent()) {
+		LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_state.toString() << ", event=" << pEvent->toString());
 		if(!m_state.isValid()) {
 			LOG4CPLUS_FATAL(logger, "CConnectionState is out of range: " << (byte)m_state);
 			return 0;
@@ -84,32 +84,46 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 			(this->*event.requestHandler)(pEvent.get());
 		} else {
 			session_states_t::iterator it = m_sessionStates.end();
+			uint16_t packetIdentifier = CPacket::UNUSED_PACKET_IDENTIFIER;
 			if(event.getPacketIdentifier) {
-				uint16_t packetIdentifier = event.getPacketIdentifier(pEvent.get());
+				packetIdentifier = event.getPacketIdentifier(pEvent.get());
 				it = m_sessionStates.find(packetIdentifier);
 			}
-			if(pEvent->value<CMqttEvent::Value>() != CMqttEvent::SessionTimeout) {
-				// TODO:
-				//   Check if type of received packet equals to CSessionState::responseType
-
-				if(event.responseHandler) {
-					// Received SUBACK, UNSUBACK, PUBLISH, PUBACK, PUBREC, PUBREL, PUBCOMP
-					LOG4CPLUS_TRACE(logger, "Handling response: " << pEvent->toString());
-					(this->*event.responseHandler)(pEvent.get(), it);
+			CReceivedPacket* packet = getReceivedPacket<CReceivedPacket>(pEvent.get());
+			if(it != m_sessionStates.end()) {
+				CSessionState& state = it->second;
+				if(pEvent->value<CMqttEvent::Value>() != CMqttEvent::SessionTimeout) {
+					if(state.responseType == packet->type()) {
+						if(event.responseHandler) {
+							// Received SUBACK, UNSUBACK, PUBLISH, PUBACK, PUBREC, PUBREL, PUBCOMP
+							LOG4CPLUS_TRACE(logger, "Handling response: " << pEvent->toString() <<
+													", packet identifier=" << packetIdentifier);
+							(this->*event.responseHandler)(pEvent.get(), it);
+						} else {
+							LOG4CPLUS_FATAL(logger, "No response handler: event=" << pEvent->toString());
+							_ASSERTE(!"No response handler");
+						}
+					} else {
+						LOG4CPLUS_ERROR(logger, "Packet type mismatch: "
+												"expected=" << state.responseType.toString() <<
+												", received=" << packet->type().toString() <<
+												", packet identifier=" << packetIdentifier);
+					}
 				} else {
-					LOG4CPLUS_WARN(logger, "No response handler: event=" << pEvent->toString());
-					_ASSERTE(!"No response handler");
+					// Response timeout
+					if(event.timeoutHandler) {
+						LOG4CPLUS_INFO(logger, "Handling timeout: "
+												"packet identifier=" << packetIdentifier <<
+												", expect " << state.responseType.toString());
+						(this->*event.timeoutHandler)(pEvent.get(), it);
+					} else {
+						LOG4CPLUS_FATAL(logger, "No timeout handler: event=" << pEvent->toString());
+						_ASSERTE(!"No timeout handler");
+					}
 				}
 			} else {
-				// Response timeout
-				if(event.timeoutHandler) {
-					LOG4CPLUS_INFO(logger, "Handling timeout: " << pEvent->toString()
-											<< ", expect " << ((it != m_sessionStates.end()) ? it->second.responseType.toString() : ""));
-					(this->*event.timeoutHandler)(pEvent.get(), it);
-				} else {
-					LOG4CPLUS_WARN(logger, "No timeout handler: event=" << pEvent->toString());
-					_ASSERTE(!"No timeout handler");
-				}
+				LOG4CPLUS_ERROR(logger, "No session state for " << packet->type().toString() <<
+										", packet identifier=" << packetIdentifier);
 			}
 		}
 	}
