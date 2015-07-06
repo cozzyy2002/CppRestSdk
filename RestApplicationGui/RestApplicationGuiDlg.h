@@ -37,6 +37,7 @@ protected:
 	virtual void onConnAck(bool accepted);
 	virtual void onConnectionClosed();
 	virtual void onSubAck(bool accepted);
+	virtual void onUnsubAck();
 	virtual void onPublished(LPCTSTR topic, const MQTT::data_t& payload);
 
 	ConnectStatus m_ConnectStatus;

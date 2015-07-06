@@ -134,6 +134,15 @@ const data_t& CSubscribePacket::data()
 	return CPacketToSend::data(0);
 }
 
+const data_t& CUnsubscribePacket::data()
+{
+	add(m_packetIdentifier);
+	for(CUnsubscribeEvent::Params::const_iterator i = m_params.begin(); i != m_params.end(); i++) {
+		add(*i);
+	}
+	return CPacketToSend::data(0);
+}
+
 const data_t& CPublishPacket::data()
 {
 	add(m_params.topic);

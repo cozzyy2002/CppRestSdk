@@ -39,6 +39,11 @@ void CMaquetteImpl::subscribe(LPCTSTR topic, MQTT::QOS qos)
 	postEvent(new CSubscribeEvent(to_utf8string(topic), qos));
 }
 
+void CMaquetteImpl::unsubscribe(LPCTSTR topic)
+{
+	postEvent(new CUnsubscribeEvent(to_utf8string(topic)));
+}
+
 void CMaquetteImpl::publish(LPCTSTR topic, const data_t& payload, MQTT::QOS qos, bool retain)
 {
 	postEvent(new CPublishEvent(to_utf8string(topic), payload, qos, retain));
@@ -305,13 +310,13 @@ void CMaquetteImpl::handleSubAck(CMqttEvent* pEvent, session_states_t::iterator 
 
 	if(packet->isAccepted) {
 		LOG4CPLUS_INFO(logger, "MQTT SUBSCRIBE accepted.");
-		m_callback->onSubAck(true);
 	} else {
 		LOG4CPLUS_ERROR(logger, "MQTT SUBSCRIBE rejected");
-		m_callback->onSubAck(false);
 	}
 
 	m_sessionStates.erase(it);
+
+	m_callback->onSubAck(packet->isAccepted);
 }
 
 #define _SESSION_HANDLER_NOT_IMPL LOG4CPLUS_WARN(logger, "Not implemented: " __FUNCTION__)
@@ -323,12 +328,19 @@ void CMaquetteImpl::handleSubAckTimeout(CMqttEvent* pEvent, session_states_t::it
 
 void CMaquetteImpl::handleUnsubscribe(CMqttEvent* pEvent)
 {
-	_SESSION_HANDLER_NOT_IMPL;
+	CUnsubscribeEvent* p = getEvent<CUnsubscribeEvent>(pEvent);
+	CUnsubscribePacket* packet = new CUnsubscribePacket(p->params());
+	send(*packet);
+
+	m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::UNSUBACK, packet);
 }
 
 void CMaquetteImpl::handleUnsubAck(CMqttEvent* pEvent, session_states_t::iterator it)
 {
-	_SESSION_HANDLER_NOT_IMPL;
+	uint16_t packetIdentifier = getReceivedPacket<CUnsubAckPacket>(pEvent)->packetIdentifier();
+	m_sessionStates.erase(it);
+
+	m_callback->onUnsubAck();
 }
 
 void CMaquetteImpl::handleUnsubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it)

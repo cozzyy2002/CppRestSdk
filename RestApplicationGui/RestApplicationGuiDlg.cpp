@@ -205,6 +205,11 @@ void CRestApplicationGuiDlg::onSubAck(bool accepted)
 	LOG4CPLUS_INFO(logger, __FUNCTIONW__ U(" ") << (accepted ? U("Accepted") : U("Rejected")));
 };
 
+void CRestApplicationGuiDlg::onUnsubAck()
+{
+	LOG4CPLUS_INFO(logger, __FUNCTIONW__);
+};
+
 void CRestApplicationGuiDlg::onPublished(LPCTSTR topic, const data_t& payload)
 {
 	LOG4CPLUS_INFO(logger, __FUNCTIONW__ U(" Topic=") << topic << U(",") << payload.size() << U(" byte"));
@@ -240,9 +245,7 @@ void CRestApplicationGuiDlg::OnClickedButtonSubscibe()
 void CRestApplicationGuiDlg::OnClickedButtonUnsubscibe()
 {
 	UpdateData();
-	data_t data;
-	data.assign((byte*)(LPCTSTR)m_Topic, (byte*)&((LPCTSTR)m_Topic)[m_Topic.GetLength()]);
-	LOG4CPLUS_INFO(logger, "dump(data) length=" << data.size() << "\n" << CUtils::dump(data).c_str());
+	m_maquette->unsubscribe(m_Topic);
 }
 
 

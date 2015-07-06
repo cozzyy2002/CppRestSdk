@@ -218,6 +218,17 @@ namespace MQTT {
 		virtual bool parse(size_t& pos);
 	};
 
+	class CUnsubscribePacket : public CPacketToSend {
+	public:
+		CUnsubscribePacket(const CUnsubscribeEvent::Params& params)
+			: CPacket(Type::UNSUBSCRIBE), CPacketToSend(m_type), m_params(params) {};
+
+		virtual const data_t& data();
+
+	protected:
+		CUnsubscribeEvent::Params m_params;
+	};
+
 	class CUnsubAckPacket : public CReceivedPacket {
 	public:
 		CUnsubAckPacket(const data_t& data) : CPacket(Type::UNSUBACK, data), CReceivedPacket(m_type, CMqttEvent::UnsubAck) {};

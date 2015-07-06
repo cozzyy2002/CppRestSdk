@@ -22,6 +22,7 @@ namespace MQTT {
 		virtual void onConnAck(bool accepted) {};
 		virtual void onConnectionClosed() {};
 		virtual void onSubAck(bool accepted) {};
+		virtual void onUnsubAck() {};
 		virtual void onPublished(LPCTSTR topic, const data_t& payload) {};
 	};
 
@@ -32,6 +33,7 @@ namespace MQTT {
 		virtual void connect(LPCTSTR serverUrl, LPCTSTR clientId, DWORD keepAlive = 120) = 0;
 		virtual void disconnect() = 0;
 		virtual void subscribe(LPCTSTR topic, QOS qos = QOS_0) = 0;
+		virtual void unsubscribe(LPCTSTR topic) = 0;
 		virtual void publish(LPCTSTR topic, const data_t& payload, QOS qos = QOS_0, bool retain = false) = 0;
 		virtual LRESULT onUserEvent(WPARAM wParam, LPARAM lParam) = 0;
 	};
