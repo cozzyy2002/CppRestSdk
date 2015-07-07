@@ -280,7 +280,7 @@ namespace MQTT {
 	class CPubRelPacket : public CSimplePacket {
 	public:
 		CPubRelPacket(uint16_t packetIdentifier) : CPacket(Type::PUBREL), CSimplePacket(m_type, packetIdentifier) {};
-		CPubRelPacket(const data_t& data) : CPacket(Type::PUBREL), CSimplePacket(m_type, CMqttEvent::PubRel) {};
+		CPubRelPacket(const data_t& data) : CPacket(Type::PUBREL, data), CSimplePacket(m_type, CMqttEvent::PubRel) {};
 
 		virtual bool parse(size_t& pos) { return CSimplePacket::parse(pos, true); };
 	};

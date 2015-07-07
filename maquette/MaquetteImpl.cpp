@@ -131,6 +131,7 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 										", packet identifier=" << packetIdentifier);
 			}
 		}
+		LOG4CPLUS_DEBUG(logger, "Remaining session count: " << m_sessionStates.size());
 	}
 
 	return 0;
@@ -163,7 +164,7 @@ const CMaquetteImpl::SessionEvent CMaquetteImpl::sesstion_event_table[CMqttEvent
 	{	H(Unsubscribe)		},
 	{	NULL,	H(UnsubAck),	H(UnsubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CUnsubAckPacket>(e)->packetIdentifier(); }	},
 	{	H(Publish)			},
-	{	NULL,	H(Published)	},	// Published event(Received PUBLISH packet) has no timeout handler
+	{	H(Published)		},	// Published event(Received PUBLISH packet) is handled as request because session state is not present
 	{	NULL,	H(PubAck),		H(PubAckTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubAckPacket>(e)->packetIdentifier(); }	},
 	{	NULL,	H(PubRec),		H(PubRecTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubRecPacket>(e)->packetIdentifier(); }	},
 	{	NULL,	H(PubRel),		H(PubRelTimeout),	[](CMqttEvent* e) { return getReceivedPacket<CPubRelPacket>(e)->packetIdentifier(); }	},
@@ -208,10 +209,14 @@ void CMaquetteImpl::receive(const web::websockets::client::websocket_incoming_me
 			LOG4CPLUS_DEBUG(logger, "Received "
 				<< (data->size() ? CPacket::Type::toString(data->at(0)) : "") << ": "
 				<< data->size() << " byte\n" << CUtils::dump(*data).c_str());
-			CReceivedPacket* packet = CReceivedPacket::create(*data);
-			if(packet) {
-				LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name() << ", Remaining Length=" << packet->remainingLength);
-				postEvent(new CReceivedPacketEvent(packet));
+			try {
+				CReceivedPacket* packet = CReceivedPacket::create(*data);
+				if(packet) {
+					LOG4CPLUS_DEBUG(logger, "Received: " << typeid(*packet).name() << ", Remaining Length=" << packet->remainingLength);
+					postEvent(new CReceivedPacketEvent(packet));
+				}
+			} catch(const std::exception& ex) {
+				LOG4CPLUS_ERROR(logger, "Exception while parsing packet: " << ex.what());
 			}
 		});
 }
@@ -371,7 +376,7 @@ void CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
 	}
 }
 
-void CMaquetteImpl::handlePublished(CMqttEvent* pEvent, session_states_t::iterator /* not used */)
+void CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 {
 	CPublishPacket* packet = getReceivedPacket<CPublishPacket>(pEvent);
 	const CPublishEvent::Params& params = packet->params();

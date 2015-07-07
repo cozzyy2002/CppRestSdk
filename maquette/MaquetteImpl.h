@@ -75,7 +75,7 @@ namespace MQTT {
 		void handleUnsubAck(CMqttEvent* pEvent, session_states_t::iterator it);
 		void handleUnsubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it);
 		void handlePublish(CMqttEvent* pEvent);
-		void handlePublished(CMqttEvent* pEvent, session_states_t::iterator it);
+		void handlePublished(CMqttEvent* pEvent);
 		void handlePubAck(CMqttEvent* pEvent, session_states_t::iterator it);
 		void handlePubAckTimeout(CMqttEvent* pEvent, session_states_t::iterator it);
 		void handlePubRec(CMqttEvent* pEvent, session_states_t::iterator it);
