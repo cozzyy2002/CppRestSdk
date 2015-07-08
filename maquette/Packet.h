@@ -64,6 +64,7 @@ namespace MQTT {
 		typedef data_t::size_type size_t;
 		static const size_t remainingLengthMax = 268435455;
 
+		inline const data_t& data() const { return m_data; };
 		inline const Type& type() const { return m_type; };
 		inline uint16_t packetIdentifier() const { return m_packetIdentifier; };
 		inline virtual LPCSTR toString() const { return m_type.toString(); };
@@ -90,7 +91,7 @@ namespace MQTT {
 		void add(byte num) { add((uint32_t)num, 1); }
 		void add(uint16_t num) { add((uint32_t)num, 2); }
 		void add(uint32_t num, size_t size = sizeof(uint32_t));
-		virtual const data_t& data() { return data(0); };
+		virtual const data_t& encode() { return encode(0); };
 
 	protected:
 		// Variable header and Payload
@@ -100,7 +101,7 @@ namespace MQTT {
 		template<size_t size>
 		size_t encodeRemainingLength(byte(& encoded)[size], size_t lengthToEncode) const;
 
-		const data_t& data(byte flagBit);
+		const data_t& encode(byte flagBit);
 	};
 
 	class CReceivedPacket : virtual public CPacket {
@@ -115,10 +116,10 @@ namespace MQTT {
 		CReceivedPacket(const Type& type) : CPacket(type) {};	// Constructor for class derived from both CPacketToSend and CReceivedPacket
 		CReceivedPacket(const Type& type, CMqttEvent::Value event)
 			: CPacket(type), m_event(event) {};
-		bool parse();
+		bool decode();
 
 		// pos = top position of remainings(Variavle header)
-		virtual bool parse(size_t& pos) { return true; };
+		virtual bool decode(size_t& pos) { return true; };
 		size_t decodeRemainingLength(size_t& pos) const;
 		uint16_t makeWord(size_t& pos) const;
 		void checkLength(size_t pos, size_t size) const;
@@ -142,13 +143,13 @@ namespace MQTT {
 			m_packetIdentifier = packetIdentifier;
 		};
 
-		virtual const data_t& data();
+		virtual const data_t& encode();
 
 		// Constructor for received packet
 		CSimplePacket(const Type& type, CMqttEvent::Value event)
 			: CPacket(type), CPacketToSend(type), CReceivedPacket(m_type, event) {};
 
-		bool parse(size_t& pos, bool usePacketIdentifier);
+		bool decode(size_t& pos, bool usePacketIdentifier);
 	};
 
 	class CConnectPacket : public CPacketToSend {
@@ -156,7 +157,7 @@ namespace MQTT {
 		CConnectPacket(const CConnectEvent::Params& params)
 			: CPacket(Type::CONNECT), CPacketToSend(m_type), m_params(params) {};
 
-		virtual const data_t& data();
+		virtual const data_t& encode();
 
 	protected:
 		const CConnectEvent::Params m_params;
@@ -194,7 +195,7 @@ namespace MQTT {
 		bool isAccepted;
 
 	protected:
-		virtual bool parse(size_t& pos);
+		virtual bool decode(size_t& pos);
 	};
 
 	class CSubscribePacket : public CPacketToSend {
@@ -202,7 +203,7 @@ namespace MQTT {
 		CSubscribePacket(const CSubscribeEvent::Params& params)
 			: CPacket(Type::SUBSCRIBE), CPacketToSend(m_type), m_params(params) {};
 
-		virtual const data_t& data();
+		virtual const data_t& encode();
 
 	protected:
 		CSubscribeEvent::Params m_params;
@@ -215,7 +216,7 @@ namespace MQTT {
 		byte qos;
 		bool isAccepted;
 
-		virtual bool parse(size_t& pos);
+		virtual bool decode(size_t& pos);
 	};
 
 	class CUnsubscribePacket : public CPacketToSend {
@@ -223,7 +224,7 @@ namespace MQTT {
 		CUnsubscribePacket(const CUnsubscribeEvent::Params& params)
 			: CPacket(Type::UNSUBSCRIBE), CPacketToSend(m_type), m_params(params) {};
 
-		virtual const data_t& data();
+		virtual const data_t& encode();
 
 	protected:
 		CUnsubscribeEvent::Params m_params;
@@ -233,7 +234,7 @@ namespace MQTT {
 	public:
 		CUnsubAckPacket(const data_t& data) : CPacket(Type::UNSUBACK, data), CReceivedPacket(m_type, CMqttEvent::UnsubAck) {};
 
-		virtual bool parse(size_t& pos);
+		virtual bool decode(size_t& pos);
 	};
 
 	class CPublishPacket : public CPacketToSend, public CReceivedPacket {
@@ -244,15 +245,15 @@ namespace MQTT {
 			, CPacketToSend(m_type), CReceivedPacket(m_type)
 			, m_params(params), m_dup(false) {};
 
-		void setDup(bool dup = true) { m_dup = dup; };
+		void setDup(bool dup = true);
 
-		virtual const data_t& data();
+		virtual const data_t& encode();
 
 		// Constructor for received packet
 		CPublishPacket(const data_t& data)
 			: CPacket(Type::PUBLISH, data), CPacketToSend(m_type), CReceivedPacket(m_type, CMqttEvent::Published) {};
 
-		virtual bool parse(size_t& pos);
+		virtual bool decode(size_t& pos);
 
 		const CPublishEvent::Params& params() const { return m_params; };
 
@@ -266,7 +267,7 @@ namespace MQTT {
 		CPubAckPacket(uint16_t packetIdentifier) : CPacket(Type::PUBACK), CSimplePacket(m_type, packetIdentifier) {};
 		CPubAckPacket(const data_t& data) : CPacket(Type::PUBACK, data), CSimplePacket(m_type, CMqttEvent::PubAck) {};
 
-		virtual bool parse(size_t& pos) { return CSimplePacket::parse(pos, true); };
+		virtual bool decode(size_t& pos) { return CSimplePacket::decode(pos, true); };
 	};
 
 	class CPubRecPacket : public CSimplePacket {
@@ -274,7 +275,7 @@ namespace MQTT {
 		CPubRecPacket(uint16_t packetIdentifier) : CPacket(Type::PUBREC), CSimplePacket(m_type, packetIdentifier) {};
 		CPubRecPacket(const data_t& data) : CPacket(Type::PUBREC, data), CSimplePacket(m_type, CMqttEvent::PubRec) {};
 
-		virtual bool parse(size_t& pos) { return CSimplePacket::parse(pos, true); };
+		virtual bool decode(size_t& pos) { return CSimplePacket::decode(pos, true); };
 	};
 
 	class CPubRelPacket : public CSimplePacket {
@@ -282,7 +283,7 @@ namespace MQTT {
 		CPubRelPacket(uint16_t packetIdentifier) : CPacket(Type::PUBREL), CSimplePacket(m_type, packetIdentifier) {};
 		CPubRelPacket(const data_t& data) : CPacket(Type::PUBREL, data), CSimplePacket(m_type, CMqttEvent::PubRel) {};
 
-		virtual bool parse(size_t& pos) { return CSimplePacket::parse(pos, true); };
+		virtual bool decode(size_t& pos) { return CSimplePacket::decode(pos, true); };
 	};
 
 	class CPubCompPacket : public CSimplePacket {
@@ -290,7 +291,7 @@ namespace MQTT {
 		CPubCompPacket(uint16_t packetIdentifier) : CPacket(Type::PUBCOMP), CSimplePacket(m_type, packetIdentifier) {};
 		CPubCompPacket(const data_t& data) : CPacket(Type::PUBCOMP, data), CSimplePacket(m_type, CMqttEvent::PubComp) {};
 
-		virtual bool parse(size_t& pos) { return CSimplePacket::parse(pos, true); };
+		virtual bool decode(size_t& pos) { return CSimplePacket::decode(pos, true); };
 	};
 
 	class CPingReqPacket : public CPacketToSend {

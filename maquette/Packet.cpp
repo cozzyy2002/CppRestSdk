@@ -71,7 +71,7 @@ void CPacketToSend::add(uint32_t num, size_t size /*= sizeof(uint32_t)*/)
 	}
 }
 
-const data_t& CPacketToSend::data(byte flagBit)
+const data_t& CPacketToSend::encode(byte flagBit)
 {
 	byte remainingLength[4];
 	size_t pos = encodeRemainingLength(remainingLength, m_remainings.size());
@@ -107,13 +107,13 @@ size_t CPacketToSend::encodeRemainingLength(byte(& encoded)[size], size_t length
 	return pos;
 }
 
-const data_t& CSimplePacket::data()
+const data_t& CSimplePacket::encode()
 {
 	if(UNUSED_PACKET_IDENTIFIER != m_packetIdentifier) add(m_packetIdentifier);
-	return CPacketToSend::data(0);
+	return CPacketToSend::encode(0);
 }
 
-const data_t& CConnectPacket::data()
+const data_t& CConnectPacket::encode()
 {
 	add("MQTT");						// Protocol Name
 	add((byte)4);						// Protocol Level
@@ -121,36 +121,47 @@ const data_t& CConnectPacket::data()
 	add((uint16_t)m_params.keepAlive);	// Keep Alive(second)
 	add(utility::conversions::to_utf8string(m_params.clientId));	// Client Identifier
 
-	return CPacketToSend::data(0);
+	return CPacketToSend::encode(0);
 }
 
-const data_t& CSubscribePacket::data()
+const data_t& CSubscribePacket::encode()
 {
 	add(m_packetIdentifier);
 	for(CSubscribeEvent::Params::const_iterator i = m_params.begin(); i != m_params.end(); i++) {
 		add(i->topic);
 		add((byte)i->qos);
 	}
-	return CPacketToSend::data(0);
+	return CPacketToSend::encode(0);
 }
 
-const data_t& CUnsubscribePacket::data()
+const data_t& CUnsubscribePacket::encode()
 {
 	add(m_packetIdentifier);
 	for(CUnsubscribeEvent::Params::const_iterator i = m_params.begin(); i != m_params.end(); i++) {
 		add(*i);
 	}
-	return CPacketToSend::data(0);
+	return CPacketToSend::encode(0);
 }
 
-const data_t& CPublishPacket::data()
+const data_t& CPublishPacket::encode()
 {
 	add(m_params.topic);
 	if(QOS_0 < m_params.qos) add(m_packetIdentifier);
 	add(m_params.payload);
 
 	byte flagBit = (m_dup ? 0x08 : 0x00) | (m_params.qos << 1) | (m_params.retain ? 0x01 : 0x00);
-	return CPacketToSend::data(flagBit);
+	return CPacketToSend::encode(flagBit);
+}
+
+void CPublishPacket::setDup(bool dup /*= true*/)
+{
+	_ASSERTE(0 < m_data.size());
+
+	if(dup) {
+		m_data[0] |= 0x08;
+	} else {
+		m_data[0] &= ~0x08;
+	}
 }
 
 /*static*/ CReceivedPacket* CReceivedPacket::create(const data_t& data)
@@ -168,14 +179,14 @@ const data_t& CPublishPacket::data()
 
 	Type type(typeValue);
 	CReceivedPacket* packet = type.property().createPacket(data);
-	if(packet && !packet->parse()) {
+	if(packet && !packet->decode()) {
 		delete packet;
 		packet = NULL;
 	}
 	return packet;
 }
 
-bool CReceivedPacket::parse()
+bool CReceivedPacket::decode()
 {
 	size_t pos = 1;		// Position of Remaining Length in m_data
 	remainingLength = decodeRemainingLength(pos);
@@ -186,7 +197,7 @@ bool CReceivedPacket::parse()
 	}
 
 	try {
-		return parse(pos);
+		return decode(pos);
 	} catch(const std::exception&) {
 		return false;
 	}
@@ -229,7 +240,7 @@ void CReceivedPacket::checkLength(size_t pos, size_t size) const
 	}
 }
 
-bool CSimplePacket::parse(size_t& pos, bool usePacketIdentifier)
+bool CSimplePacket::decode(size_t& pos, bool usePacketIdentifier)
 {
 	if(usePacketIdentifier) {
 		m_packetIdentifier = makeWord(pos);
@@ -237,14 +248,14 @@ bool CSimplePacket::parse(size_t& pos, bool usePacketIdentifier)
 	return true;
 }
 
-bool CConnAckPacket::parse(size_t& pos)
+bool CConnAckPacket::decode(size_t& pos)
 {
 	returnCode = m_data[pos];
 	isAccepted = (returnCode == CReturnCode::ConnectionAccepted);
 	return true;
 }
 
-bool CSubAckPacket::parse(size_t& pos)
+bool CSubAckPacket::decode(size_t& pos)
 {
 	m_packetIdentifier = makeWord(pos);
 	const byte& returnCode = m_data[pos];
@@ -253,13 +264,13 @@ bool CSubAckPacket::parse(size_t& pos)
 	return true;
 }
 
-bool CUnsubAckPacket::parse(size_t& pos)
+bool CUnsubAckPacket::decode(size_t& pos)
 {
 	m_packetIdentifier = makeWord(pos);
 	return true;
 }
 
-bool CPublishPacket::parse(size_t& pos)
+bool CPublishPacket::decode(size_t& pos)
 {
 	m_params.qos = (QOS)((m_data[0] >> 1) & 0x03);
 	m_params.retain = m_data[0] & 0x01;

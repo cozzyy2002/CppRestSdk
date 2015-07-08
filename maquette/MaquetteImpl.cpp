@@ -176,7 +176,7 @@ void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
 	// Copy data to buffer.
 	// And wait for buffer to cmplete copying to prevent data from being deleted.
 	producer_consumer_buffer<byte> buf;
-	const data_t& data = packet.data();
+	const data_t& data = packet.encode();
 	LOG4CPLUS_DEBUG(logger, "Sending " << CPacket::Type::toString(data[0]) << ": " << data.size() << " byte\n" << CUtils::dump(data).c_str());
 	size_t size = buf.putn(data.data(), data.size()).get();
 
