@@ -205,6 +205,23 @@ void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
 	if(wait) task.wait();
 }
 
+/**
+ * Send packet related session state
+ */
+void CMaquetteImpl::send(MQTT::CPacketToSend* packet, CPacket::Type::Value responseType, bool wait /*= false*/)
+{
+	send(*packet, wait);
+
+	// Create session status and start timer for response
+	// NOTE: Start session timer *AFTER* adding state to session state list
+	//       or state instance is deleted after starting session timer
+	uint16_t packetIdentifier = packet->packetIdentifier();
+	CSessionState& state = m_sessionStates[packetIdentifier] = CSessionState(responseType, packet);
+	state.timer->start<uint16_t>(m_sessionResponseTimeout, packetIdentifier, [this](uint16_t packetIdentifier) {
+		postEvent(new CSessionTimeoutEvent(packetIdentifier));
+	});
+}
+
 void CMaquetteImpl::receive(const web::websockets::client::websocket_incoming_message& msg)
 {
 	size_t size = msg.length();
@@ -309,12 +326,7 @@ CConnectionState CMaquetteImpl::handleConnAck(CMqttEvent* pEvent)
 void CMaquetteImpl::handleSubscribe(CMqttEvent* pEvent)
 {
 	CSubscribeEvent* p = getEvent<CSubscribeEvent>(pEvent);
-	CSubscribePacket* packet = new CSubscribePacket(p->params());
-	send(*packet);
-
-	CSessionState state(CPacket::Type::SUBACK, packet);
-	startSessionTimer(state, packet->packetIdentifier());
-	m_sessionStates[packet->packetIdentifier()] = state;
+	send(new CSubscribePacket(p->params()), CPacket::Type::SUBACK);
 }
 
 void CMaquetteImpl::handleSubAck(CMqttEvent* pEvent, session_states_t::iterator it)
@@ -342,10 +354,7 @@ void CMaquetteImpl::handleSubAckTimeout(CMqttEvent* pEvent, session_states_t::it
 void CMaquetteImpl::handleUnsubscribe(CMqttEvent* pEvent)
 {
 	CUnsubscribeEvent* p = getEvent<CUnsubscribeEvent>(pEvent);
-	CUnsubscribePacket* packet = new CUnsubscribePacket(p->params());
-	send(*packet);
-
-	m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::UNSUBACK, packet);
+	send(new CUnsubscribePacket(p->params()), CPacket::Type::UNSUBACK);
 }
 
 void CMaquetteImpl::handleUnsubAck(CMqttEvent* pEvent, session_states_t::iterator it)
@@ -365,21 +374,22 @@ void CMaquetteImpl::handlePublish(CMqttEvent* pEvent)
 {
 	CPublishEvent* p = getEvent<CPublishEvent>(pEvent);
 	CPublishPacket* packet = new CPublishPacket(p->params());
-	send(*packet);
 
 	switch(p->params().qos) {
 	default:
 		LOG4CPLUS_FATAL(logger, "Unknown QoS: " << p->params().qos);
 		_ASSERTE(!"Unknown QoS");
-		// go through
+		delete packet;
+		break;
 	case QOS_0:
+		send(*packet);
 		delete packet;
 		break;
 	case QOS_1:
-		m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::PUBACK, packet);
+		send(packet, CPacket::Type::PUBACK);
 		break;
 	case QOS_2:
-		m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::PUBREC, packet);
+		send(packet, CPacket::Type::PUBREC);
 		break;
 	}
 }
@@ -397,17 +407,10 @@ void CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 	case QOS_0:
 		break;
 	case QOS_1:
-		{
-			CPubAckPacket p(packet->packetIdentifier());
-			send(p);
-		}
+		send(CPubAckPacket(packet->packetIdentifier()));
 		break;
 	case QOS_2:
-		{
-			CPubRecPacket* p = new CPubRecPacket(packet->packetIdentifier());
-			send(*p);
-			m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::PUBREL, p);
-		}
+		send(new CPubRecPacket(packet->packetIdentifier()), CPacket::Type::PUBREL);
 		break;
 	}
 
@@ -427,10 +430,7 @@ void CMaquetteImpl::handlePubAckTimeout(CMqttEvent* pEvent, session_states_t::it
 void CMaquetteImpl::handlePubRec(CMqttEvent* pEvent, session_states_t::iterator it)
 {
 	uint16_t packetIdentifier = getReceivedPacket<CPubRecPacket>(pEvent)->packetIdentifier();
-	CPubRelPacket* packet = new CPubRelPacket(packetIdentifier);
-	send(*packet);
-
-	m_sessionStates[packetIdentifier] = CSessionState(CPacket::Type::PUBCOMP, packet);
+	send(new CPubRelPacket(packetIdentifier), CPacket::Type::PUBCOMP);
 }
 
 void CMaquetteImpl::handlePubRecTimeout(CMqttEvent* pEvent, session_states_t::iterator it)
@@ -441,10 +441,9 @@ void CMaquetteImpl::handlePubRecTimeout(CMqttEvent* pEvent, session_states_t::it
 void CMaquetteImpl::handlePubRel(CMqttEvent* pEvent, session_states_t::iterator it)
 {
 	uint16_t packetIdentifier = getReceivedPacket<CPubRelPacket>(pEvent)->packetIdentifier();
-	CPubCompPacket packet(packetIdentifier);
-	send(packet);
+	send(CPubCompPacket(packetIdentifier));
 
-	// What if PUBREL will be sent from server?
+	// What if PUBREL will be sent from server again?
 	m_sessionStates.erase(packetIdentifier);
 }
 

@@ -31,10 +31,7 @@ namespace MQTT {
 			: responseType(CPacket::Type::Reserved_0), packetSent(NULL) {};
 
 		CSessionState(CPacket::Type type, CPacketToSend* packet)
-			: responseType(type), packetSent(packet), timer(new CTimer())
-		{
-
-		};
+			: responseType(type), packetSent(packet), timer(new CTimer()) {};
 
 		virtual ~CSessionState() {
 			if(timer.get()) timer->cancel();

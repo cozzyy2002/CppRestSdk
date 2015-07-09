@@ -28,6 +28,7 @@ namespace MQTT {
 		static const connection_event_handler_t state_event_table[CMqttEvent::_ConnectionEventCount][CConnectionState::_Count];
 
 		void send(MQTT::CPacketToSend& packet, bool wait = false);
+		void send(MQTT::CPacketToSend* packet, CPacket::Type::Value responseType, bool wait = false);
 		void receive(const web::websockets::client::websocket_incoming_message& msg);
 
 		void postEvent(CMqttEvent::Value value);
@@ -37,13 +38,6 @@ namespace MQTT {
 		{
 			timer.start<CMqttEvent::Value>(ms, event, [this](CMqttEvent::Value event) {
 				postEvent(event);
-			});
-		};
-
-		void startSessionTimer(CSessionState& state, uint16_t packetIdentifier)
-		{
-			state.timer->start<uint16_t>(m_sessionResponseTimeout, packetIdentifier, [this](uint16_t packetIdentifier) {
-				postEvent(new CSessionTimeoutEvent(packetIdentifier));
 			});
 		};
 
