@@ -22,7 +22,13 @@ CMaquetteImpl::CMaquetteImpl(IMaquetteCallback* callback)
 
 
 CMaquetteImpl::~CMaquetteImpl()
-{}
+{
+	// Don't call callback any more
+	m_callback = NULL;
+
+	m_client->set_close_handler([](web::websockets::client::websocket_close_status, const utility::string_t, const std::error_code&) {});
+	m_client->close();
+}
 
 void CMaquetteImpl::connect(LPCTSTR serverUrl, LPCTSTR clientId, DWORD keepAlive)
 {
