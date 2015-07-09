@@ -306,7 +306,9 @@ void CMaquetteImpl::handleSubscribe(CMqttEvent* pEvent)
 	CSubscribePacket* packet = new CSubscribePacket(p->params());
 	send(*packet);
 
-	m_sessionStates[packet->packetIdentifier()] = CSessionState(CPacket::Type::SUBACK, packet);
+	CSessionState state(CPacket::Type::SUBACK, packet);
+	startSessionTimer(state, packet->packetIdentifier());
+	m_sessionStates[packet->packetIdentifier()] = state;
 }
 
 void CMaquetteImpl::handleSubAck(CMqttEvent* pEvent, session_states_t::iterator it)

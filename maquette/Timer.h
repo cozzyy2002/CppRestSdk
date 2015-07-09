@@ -18,6 +18,8 @@ namespace MQTT {
 		bool m_active;
 		HANDLE m_cancelEvent;
 		HANDLE m_restartEvent;
+
+		static log4cplus::Logger logger;
 	};
 
 	template<typename T>
@@ -49,6 +51,7 @@ namespace MQTT {
 					break;
 				default:
 					LOG4CPLUS_FATAL(logger, "WaitForSingleObject() failed. error=" << ::GetLastError());
+					repeat = false;
 					break;
 				}
 			} while(repeat);

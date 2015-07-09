@@ -3,7 +3,7 @@
 
 using namespace MQTT;
 
-static log4cplus::Logger logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("MQTT.CTimer"));
+log4cplus::Logger CTimer::logger = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("MQTT.CTimer"));
 
 CTimer::CTimer(bool repeat /*= false*/) : m_repeat(repeat), m_active(false)
 {

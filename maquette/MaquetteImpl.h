@@ -40,6 +40,15 @@ namespace MQTT {
 			});
 		};
 
+		void startSessionTimer(CSessionState& state, uint16_t packetIdentifier)
+		{
+			state.timer->start<uint16_t>(m_sessionResponseTimeout, packetIdentifier, [this](uint16_t packetIdentifier) {
+				postEvent(new CSessionTimeoutEvent(packetIdentifier));
+			});
+		};
+
+		static const DWORD m_sessionResponseTimeout = 2000;
+
 		CConnectionState handleConnect(CMqttEvent* pEvent);
 		CConnectionState handleDisconnect(CMqttEvent* pEvent);
 		CConnectionState handleDisconnectSocket(CMqttEvent* pEvent);

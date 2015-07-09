@@ -3,6 +3,7 @@
 #include "maquette/maquette.h"
 #include "EnumValue.h"
 #include "Packet.h"
+#include "Timer.h"
 
 namespace MQTT {
 
@@ -30,11 +31,17 @@ namespace MQTT {
 			: responseType(CPacket::Type::Reserved_0), packetSent(NULL) {};
 
 		CSessionState(CPacket::Type type, CPacketToSend* packet)
-			: responseType(type), packetSent(packet) {};
+			: responseType(type), packetSent(packet), timer(new CTimer())
+		{
 
-		virtual ~CSessionState() {};
+		};
+
+		virtual ~CSessionState() {
+			if(timer.get()) timer->cancel();
+		};
 
 		CPacket::Type responseType;
 		std::shared_ptr<CPacketToSend> packetSent;
+		std::shared_ptr<CTimer> timer;
 	};
 }
