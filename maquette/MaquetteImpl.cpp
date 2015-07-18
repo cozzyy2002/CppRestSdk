@@ -100,10 +100,10 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 				packetIdentifier = event.getPacketIdentifier(pEvent.get());
 				it = m_sessionStates.find(packetIdentifier);
 			}
-			CReceivedPacket* packet = getReceivedPacket<CReceivedPacket>(pEvent.get());
 			if(it != m_sessionStates.end()) {
 				CSessionState& state = it->second;
 				if(pEvent->value<CMqttEvent::Value>() != CMqttEvent::SessionTimeout) {
+					CReceivedPacket* packet = getReceivedPacket<CReceivedPacket>(pEvent.get());
 					if(state.responseType == packet->type()) {
 						if(event.responseHandler) {
 							// Received SUBACK, UNSUBACK, PUBLISH, PUBACK, PUBREC, PUBREL, PUBCOMP
@@ -133,8 +133,7 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 					}
 				}
 			} else {
-				LOG4CPLUS_ERROR(logger, "No session state for " << packet->type().toString() <<
-										", packet identifier=" << packetIdentifier);
+				LOG4CPLUS_ERROR(logger, "No session state for packet identifier=" << packetIdentifier);
 			}
 		}
 		LOG4CPLUS_DEBUG(logger, "Remaining session count: " << m_sessionStates.size());
@@ -399,9 +398,9 @@ void CMaquetteImpl::handlePublished(CMqttEvent* pEvent)
 	CPublishPacket* packet = getReceivedPacket<CPublishPacket>(pEvent);
 	const CPublishEvent::Params& params = packet->params();
 
-	switch(packet->params().qos) {
+	switch(params.qos) {
 	default:
-		LOG4CPLUS_FATAL(logger, "Unknown QoS: " << packet->params().qos);
+		LOG4CPLUS_FATAL(logger, "Unknown QoS: " << params.qos);
 		_ASSERTE(!"Unknown QoS");
 		// go through
 	case QOS_0:

@@ -18,6 +18,10 @@ CTimer::CTimer(bool repeat /*= false*/) : m_repeat(repeat), m_active(false)
 CTimer::~CTimer()
 {
 	cancel();
+	try {
+		m_task.wait();
+	} catch(const std::exception&) { /* Ignore */ }
+
 	::CloseHandle(m_cancelEvent);
 	::CloseHandle(m_restartEvent);
 }

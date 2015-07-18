@@ -18,6 +18,7 @@ namespace MQTT {
 		bool m_active;
 		HANDLE m_cancelEvent;
 		HANDLE m_restartEvent;
+		pplx::task<void> m_task;
 
 		static log4cplus::Logger logger;
 	};
@@ -27,8 +28,8 @@ namespace MQTT {
 	{
 		m_active = true;
 		pplx::task_completion_event<void> tce;
-		pplx::task<void> task(tce);
-		task.then([this, ms, timeoutFunc, param](pplx::task<void> task) {
+		m_task = pplx::task<void>(tce);
+		m_task.then([this, ms, timeoutFunc, param](pplx::task<void> task) {
 			HANDLE events[] = {m_cancelEvent, m_restartEvent};
 			::ResetEvent(events[0]);
 			::ResetEvent(events[1]);
