@@ -43,13 +43,13 @@ static const struct _RemainingLengthTestData RemainingLengthTestData[] = {
 	{268435455, 4, {0xFF, 0xFF, 0xFF, 0x7F}},
 };
 
-class EncodeRemainingLengthTest
+class RemainingLengthTest
 	: public CPacketTest
-	, public WithParamInterface<size_t> {};
+	, public WithParamInterface<struct _RemainingLengthTestData> {};
 
-TEST_P(EncodeRemainingLengthTest, normal)
+TEST_P(RemainingLengthTest, encode)
 {
-	const _RemainingLengthTestData& data = RemainingLengthTestData[GetParam()];
+	const _RemainingLengthTestData& data = GetParam();
 
 	byte out[4] = {0};
 	size_t pos = testee.encodeRemainingLength(out, data.decoded);
@@ -57,15 +57,9 @@ TEST_P(EncodeRemainingLengthTest, normal)
 	EXPECT_EQ(data.size, pos);
 }
 
-INSTANTIATE_TEST_CASE_P(CPacketToSend, EncodeRemainingLengthTest, Range((size_t)0, ARRAYSIZE(RemainingLengthTestData)));
-
-class DecodeRemainingLengthTest
-	: public CPacketTest
-	, public WithParamInterface<size_t> {};
-
-TEST_P(DecodeRemainingLengthTest, normal)
+TEST_P(RemainingLengthTest, decode)
 {
-	const _RemainingLengthTestData& data = RemainingLengthTestData[GetParam()];
+	const _RemainingLengthTestData& data = GetParam();
 
 	size_t pos = 0;
 	testee.m_data = data.encoded;
@@ -74,7 +68,7 @@ TEST_P(DecodeRemainingLengthTest, normal)
 	EXPECT_EQ(data.size, pos);
 }
 
-INSTANTIATE_TEST_CASE_P(CReceivedPacket, DecodeRemainingLengthTest, Range((size_t)0, ARRAYSIZE(RemainingLengthTestData)));
+INSTANTIATE_TEST_CASE_P(CReceivedPacket, RemainingLengthTest, ValuesIn(RemainingLengthTestData));
 
 TEST_F(CPacketTest, decodeRemainingLength_shortPacket)
 {
