@@ -28,7 +28,7 @@ namespace MQTT {
 	class CSessionState {
 	public:
 		CSessionState()
-			: responseType(CPacket::Type::Reserved_0), packetSent(NULL) {};
+			: responseType(CPacket::Type::Reserved_0) {};
 
 		CSessionState(CPacket::Type type, CPacketToSend* packet)
 			: responseType(type), packetSent(packet), timer(new CTimer()) {};
@@ -38,7 +38,7 @@ namespace MQTT {
 		};
 
 		CPacket::Type responseType;
-		std::shared_ptr<CPacketToSend> packetSent;
-		std::shared_ptr<CTimer> timer;
+		std::unique_ptr<CPacketToSend> packetSent;
+		std::unique_ptr<CTimer> timer;
 	};
 }

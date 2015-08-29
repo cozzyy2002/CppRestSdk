@@ -55,7 +55,7 @@ namespace MQTT {
 		CConnectionState handleIgnore(CMqttEvent* pEvent);
 		CConnectionState handleFatal(CMqttEvent* pEvent);
 
-		typedef std::map<uint16_t, CSessionState> session_states_t;
+		typedef std::map<uint16_t, std::unique_ptr<CSessionState>> session_states_t;
 		session_states_t m_sessionStates;
 
 		typedef void (CMaquetteImpl::*session_request_handler_t)(CMqttEvent* pEvent);

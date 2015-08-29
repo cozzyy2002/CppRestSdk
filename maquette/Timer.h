@@ -31,8 +31,6 @@ namespace MQTT {
 		m_task = pplx::task<void>(tce);
 		m_task.then([this, ms, timeoutFunc, param](pplx::task<void> task) {
 			HANDLE events[] = {m_cancelEvent, m_restartEvent};
-			::ResetEvent(events[0]);
-			::ResetEvent(events[1]);
 			bool repeat = m_repeat;
 			do {
 				DWORD wait = ::WaitForMultipleObjects(ARRAYSIZE(events), events, FALSE, ms);
@@ -43,15 +41,13 @@ namespace MQTT {
 					break;
 				case WAIT_OBJECT_0:
 					LOG4CPLUS_DEBUG(logger, "Timer is canceled");
-					::ResetEvent(events[0]);
 					repeat = false;
 					break;
 				case WAIT_OBJECT_0 + 1:
 					LOG4CPLUS_DEBUG(logger, "Timer is restarted");
-					::ResetEvent(events[1]);
 					break;
 				default:
-					LOG4CPLUS_FATAL(logger, "WaitForSingleObject() failed. error=" << ::GetLastError());
+					//LOG4CPLUS_FATAL(logger, "WaitForSingleObject() failed. error=" << ::GetLastError());
 					repeat = false;
 					break;
 				}

@@ -26,8 +26,10 @@ CMaquetteImpl::~CMaquetteImpl()
 	// Don't call callback any more
 	m_callback = NULL;
 
-	m_client->set_close_handler([](web::websockets::client::websocket_close_status, const utility::string_t, const std::error_code&) {});
-	m_client->close();
+	if(m_client.get()) {
+		m_client->set_close_handler([](web::websockets::client::websocket_close_status, const utility::string_t, const std::error_code&) {});
+		m_client->close();
+	}
 }
 
 void CMaquetteImpl::connect(LPCTSTR serverUrl, LPCTSTR clientId, DWORD keepAlive)
@@ -101,7 +103,7 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 				it = m_sessionStates.find(packetIdentifier);
 			}
 			if(it != m_sessionStates.end()) {
-				CSessionState& state = it->second;
+				CSessionState& state = *(it->second);
 				if(pEvent->value<CMqttEvent::Value>() != CMqttEvent::SessionTimeout) {
 					CReceivedPacket* packet = getReceivedPacket<CReceivedPacket>(pEvent.get());
 					if(state.responseType == packet->type()) {
@@ -178,30 +180,31 @@ const CMaquetteImpl::SessionEvent CMaquetteImpl::sesstion_event_table[CMqttEvent
 
 void CMaquetteImpl::send(CPacketToSend& packet, bool wait /*= false*/)
 {
-	// Copy data to buffer.
-	// And wait for buffer to cmplete copying to prevent data from being deleted.
-	producer_consumer_buffer<byte> buf;
-	const data_t& data = packet.encode();
+	const data_t data = packet.encode();
 	LOG4CPLUS_DEBUG(logger, "Sending " << CPacket::Type::toString(data[0]) << ": " << data.size() << " byte\n" << CUtils::dump(data).c_str());
-	size_t size = buf.putn(data.data(), data.size()).get();
 
 	// Send message to the server
 	// See https://casablanca.codeplex.com/wikipage?title=Web%20Socket&referringTitle=Documentation
-	websocket_outgoing_message msg;
-	msg.set_binary_message(buf.create_istream(), size);
-	auto task = m_client->send(msg)
-		.then([this, packet](pplx::task<void> task) {
-			try {
-				task.get();
-
-				if(packet.type() != CPacket::Type::PINGREQ) {
-					m_keepAliveTimer.restart();
+	auto buf = std::make_shared<producer_consumer_buffer<byte>>();
+	auto task = buf->putn_nocopy(data.data(), data.size())
+		.then([=](size_t size) {
+			websocket_outgoing_message msg;
+			msg.set_binary_message(buf->create_istream(), size);
+			pplx::task<void>task = m_client->send(msg);
+			task.then([](pplx::task<void> t) {
+				try {
+					t.get();
+				} catch(const websocket_exception& ex) {
+					LOG4CPLUS_ERROR(logger, "websocket_callback_client::send() failed: " << ex.what());
 				}
-			} catch(const websocket_exception& e) {
-				LOG4CPLUS_ERROR(logger, "Exception while sending WebSocket message: " << e.what());
-			}
+			});
+			return task;
 		});
+		
 	if(wait) task.wait();
+	if(packet.type() != CPacket::Type::PINGREQ) {
+		m_keepAliveTimer.restart();
+	}
 }
 
 /**
@@ -215,8 +218,9 @@ void CMaquetteImpl::send(MQTT::CPacketToSend* packet, CPacket::Type::Value respo
 	// NOTE: Start session timer *AFTER* adding state to session state list
 	//       or state instance is deleted after starting session timer
 	uint16_t packetIdentifier = packet->packetIdentifier();
-	CSessionState& state = m_sessionStates[packetIdentifier] = CSessionState(responseType, packet);
-	state.timer->start<uint16_t>(m_sessionResponseTimeout, packetIdentifier, [this](uint16_t packetIdentifier) {
+	CSessionState* state = new CSessionState(responseType, packet);
+	m_sessionStates[packetIdentifier].reset(state);
+	state->timer->start<uint16_t>(m_sessionResponseTimeout, packetIdentifier, [this](uint16_t packetIdentifier) {
 		postEvent(new CSessionTimeoutEvent(packetIdentifier));
 	});
 }
