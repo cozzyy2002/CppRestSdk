@@ -80,6 +80,7 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 	}
 
 	if(pEvent->isConnectionEvent()) {
+		// Handle connection event
 		LOG4CPLUS_TRACE(logger, "OnUserEvent(): state=" << m_state.toString() << ", event=" << pEvent->toString());
 		if(!m_state.isValid()) {
 			LOG4CPLUS_FATAL(logger, "CConnectionState is out of range: " << (byte)m_state);
@@ -89,10 +90,13 @@ LRESULT CMaquetteImpl::onUserEvent(WPARAM wParam, LPARAM lParam)
 		connection_event_handler_t handler = state_event_table[*pEvent][m_state];
 		m_state = (this->*handler)(pEvent.get());
 		LOG4CPLUS_TRACE(logger, "OnUserEvent(): new state=" << m_state.toString());
+	} else if(m_state != CConnectionState::Connected) {
+		// When not connected, session event is ignored.
 	} else {
+		// Handle sesstion event
 		const SessionEvent& event = sesstion_event_table[pEvent->getEventIndex()];
 		if(event.requestHandler) {
-			// Send PUBLISH, SUBSCRIBE, UNSUBSCRIBE
+			// Send PUBLISH, SUBSCRIBE or UNSUBSCRIBE request
 			LOG4CPLUS_TRACE(logger, "Handling request: " << pEvent->toString());
 			(this->*event.requestHandler)(pEvent.get());
 		} else {
